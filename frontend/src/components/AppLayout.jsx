@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Zap, LayoutDashboard, BookOpen, Package, ShoppingCart, Receipt, Users, Truck, Menu, X, LogOut, Building2, ChevronDown, Moon, Sun } from 'lucide-react';
+import { Zap, LayoutDashboard, BookOpen, Package, ShoppingCart, Receipt, Users, Truck, Menu, X, LogOut, Building2, ChevronDown, Moon, Sun, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useStore from '../store/useStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -9,6 +9,7 @@ const navGroups = [
     label: 'Main',
     items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/reports', icon: BarChart3, label: 'Reports' },
     ]
   },
   {

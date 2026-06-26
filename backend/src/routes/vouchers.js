@@ -230,4 +230,69 @@ router.get('/summary/dashboard', auth, checkCompany, async (req, res) => {
   }
 });
 
+// GET /api/vouchers/reports/all
+router.get('/reports/all', auth, checkCompany, async (req, res) => {
+  try {
+    // 1. Financial totals
+    const financialRes = await pool.query(
+      `SELECT 
+         voucher_type,
+         COUNT(*) as count,
+         COALESCE(SUM(grand_total), 0) as total_grand,
+         COALESCE(SUM(taxable_amount), 0) as total_taxable,
+         COALESCE(SUM(total_gst), 0) as total_gst
+       FROM vouchers 
+       WHERE company_id = $1 AND status = 'active'
+       GROUP BY voucher_type`,
+      [req.companyId]
+    );
+
+    // 2. Ledger balances
+    const ledgersRes = await pool.query(
+      `SELECT 
+         l.id, 
+         l.name, 
+         l.ledger_type, 
+         l.opening_balance, 
+         l.balance_type,
+         COALESCE(SUM(lt.debit_amount), 0) as total_debit,
+         COALESCE(SUM(lt.credit_amount), 0) as total_credit
+       FROM ledgers l
+       LEFT JOIN ledger_transactions lt ON l.id = lt.ledger_id
+       WHERE l.company_id = $1
+       GROUP BY l.id, l.name, l.ledger_type, l.opening_balance, l.balance_type
+       ORDER BY l.name`,
+      [req.companyId]
+    );
+
+    // 3. Stock items summary
+    const stockRes = await pool.query(
+      `SELECT 
+         si.id,
+         si.name,
+         sg.name as group_name,
+         si.current_stock,
+         si.purchase_price,
+         si.selling_price,
+         u.symbol as unit_symbol
+       FROM stock_items si
+       LEFT JOIN stock_groups sg ON si.stock_group_id = sg.id
+       LEFT JOIN units u ON si.unit_id = u.id
+       WHERE si.company_id = $1 AND si.is_active = true
+       ORDER BY si.name`,
+      [req.companyId]
+    );
+
+    res.json({
+      success: true,
+      financials: financialRes.rows,
+      ledgers: ledgersRes.rows,
+      stock: stockRes.rows
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error generating report data.' });
+  }
+});
+
 module.exports = router;

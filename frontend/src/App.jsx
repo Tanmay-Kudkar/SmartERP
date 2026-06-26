@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import CompanySelection from './pages/CompanySelection';
 import Dashboard from './pages/Dashboard';
+import Reports from './pages/Reports';
 
 // Masters
 import LedgerList from './pages/masters/LedgerList';
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/vouchers/sales/new" element={<PrivateRoute><VoucherForm voucherType="sales" /></PrivateRoute>} />
         <Route path="/vouchers/purchase/new" element={<PrivateRoute><VoucherForm voucherType="purchase" /></PrivateRoute>} />
         <Route path="/vouchers/:id/view" element={<PrivateRoute><InvoiceView /></PrivateRoute>} />
+        <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
 
         {/* Catch-all */}
         <Route path="/" element={<Navigate to="/login" replace />} />
