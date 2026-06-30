@@ -216,6 +216,58 @@ router.get('/summary/dashboard', auth, checkCompany, async (req, res) => {
       `SELECT COUNT(*) as total FROM stock_items WHERE company_id=$1 AND is_active=true`,
       [req.companyId]
     );
+    
+    // This month's metrics
+    const todayMetrics = await pool.query(
+      `SELECT 
+         COALESCE(SUM(CASE WHEN voucher_type='sales' THEN grand_total ELSE 0 END), 0) as today_sales,
+         COALESCE(SUM(CASE WHEN voucher_type='purchase' THEN grand_total ELSE 0 END), 0) as today_purchases,
+         COALESCE(SUM(CASE WHEN voucher_type='sales' THEN (grand_total - balance_amount) ELSE 0 END), 0) as today_receipts
+       FROM vouchers 
+       WHERE company_id=$1 AND status='active' AND DATE_TRUNC('month', voucher_date) = DATE_TRUNC('month', CURRENT_DATE)`,
+      [req.companyId]
+    );
+
+    // Ledger Balances (approximate using opening balances for MVP)
+    const ledgerBalances = await pool.query(
+      `SELECT ledger_type, COALESCE(SUM(opening_balance), 0) as total 
+       FROM ledgers 
+       WHERE company_id=$1 AND (ledger_type='cash' OR ledger_type='bank') 
+       GROUP BY ledger_type`,
+      [req.companyId]
+    );
+    let cashBalance = 0;
+    let bankBalance = 0;
+    ledgerBalances.rows.forEach(r => {
+      if (r.ledger_type === 'cash') cashBalance = parseFloat(r.total);
+      if (r.ledger_type === 'bank') bankBalance = parseFloat(r.total);
+    });
+
+    // Payables and Receivables
+    const payRec = await pool.query(
+      `SELECT voucher_type, COALESCE(SUM(balance_amount), 0) as total 
+       FROM vouchers 
+       WHERE company_id=$1 AND status='active' AND balance_amount > 0 
+       GROUP BY voucher_type`,
+      [req.companyId]
+    );
+    let receivables = 0;
+    let payables = 0;
+    payRec.rows.forEach(r => {
+      if (r.voucher_type === 'sales') receivables = parseFloat(r.total);
+      if (r.voucher_type === 'purchase') payables = parseFloat(r.total);
+    });
+
+    // Recent Vouchers
+    const recentVouchers = await pool.query(
+      `SELECT v.id, v.voucher_number, v.voucher_type, v.voucher_date, v.grand_total, l.name as party_name 
+       FROM vouchers v 
+       LEFT JOIN ledgers l ON v.ledger_id = l.id 
+       WHERE v.company_id=$1 AND v.status='active' 
+       ORDER BY v.created_at DESC LIMIT 5`,
+      [req.companyId]
+    );
+
     res.json({
       success: true,
       summary: {
@@ -223,9 +275,18 @@ router.get('/summary/dashboard', auth, checkCompany, async (req, res) => {
         total_purchases: parseFloat(purchases.rows[0].total),
         total_outstanding: parseFloat(outstanding.rows[0].total),
         stock_items: parseInt(stockCount.rows[0].total),
+        today_sales: parseFloat(todayMetrics.rows[0].today_sales),
+        today_purchases: parseFloat(todayMetrics.rows[0].today_purchases),
+        today_receipts: parseFloat(todayMetrics.rows[0].today_receipts),
+        cash_balance: cashBalance,
+        bank_balance: bankBalance,
+        receivables,
+        payables,
+        recent_vouchers: recentVouchers.rows
       }
     });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, message: 'Server error.' });
   }
 });

@@ -14,13 +14,22 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto logout on 401
+// Auto logout on 401 and global error alert
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
       localStorage.clear();
       window.location.href = '/login';
+    } else {
+      const msg = err.response?.data?.message || err.message || 'An unexpected server error occurred.';
+      window.dispatchEvent(new CustomEvent('show-alert', {
+        detail: {
+          type: 'error',
+          title: 'Application Error',
+          message: msg
+        }
+      }));
     }
     return Promise.reject(err);
   }

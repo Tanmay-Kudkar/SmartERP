@@ -1,12 +1,26 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, Layers, BookOpen, Package, RefreshCw, BarChart3 } from 'lucide-react';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 
 export default function Reports() {
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('financials');
+  const [activeTab, setActiveTab] = useState(tabParam || 'financials');
+  const [ledgersPage, setLedgersPage] = useState(1);
+  const [stockPage, setStockPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+    setLedgersPage(1);
+    setStockPage(1);
+  }, [tabParam]);
 
   const fetchReports = async () => {
     setLoading(true);
@@ -66,6 +80,12 @@ export default function Reports() {
   // Calculate stock summary
   const stock = data?.stock || [];
   const totalStockValuation = stock.reduce((sum, item) => sum + (parseFloat(item.current_stock) * parseFloat(item.purchase_price)), 0);
+
+  const totalLedgersPages = Math.ceil(ledgers.length / ITEMS_PER_PAGE);
+  const currentLedgers = ledgers.slice((ledgersPage - 1) * ITEMS_PER_PAGE, ledgersPage * ITEMS_PER_PAGE);
+
+  const totalStockPages = Math.ceil(stock.length / ITEMS_PER_PAGE);
+  const currentStock = stock.slice((stockPage - 1) * ITEMS_PER_PAGE, stockPage * ITEMS_PER_PAGE);
 
   return (
     <div className="animate-fade-in">
@@ -204,7 +224,7 @@ export default function Reports() {
                   <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No ledgers found.</td>
                 </tr>
               ) : (
-                ledgers.map(l => (
+                currentLedgers.map(l => (
                   <tr key={l.id}>
                     <td data-label="Ledger Name" style={{ fontWeight: '600' }}>{l.name}</td>
                     <td data-label="Type" style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>{l.ledger_type}</td>
@@ -219,6 +239,35 @@ export default function Reports() {
               )}
             </tbody>
           </table>
+          
+          {ledgers.length > 0 && (
+            <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              <div>
+                Showing {((ledgersPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(ledgersPage * ITEMS_PER_PAGE, ledgers.length)} of {ledgers.length} ledger{ledgers.length !== 1 ? 's' : ''}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                  disabled={ledgersPage === 1}
+                  onClick={() => setLedgersPage(p => Math.max(1, p - 1))}
+                >
+                  Prev
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', fontWeight: '600' }}>
+                  Page {ledgersPage} of {totalLedgersPages}
+                </div>
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                  disabled={ledgersPage === totalLedgersPages}
+                  onClick={() => setLedgersPage(p => Math.min(totalLedgersPages, p + 1))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -251,7 +300,7 @@ export default function Reports() {
                     <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No stock items found.</td>
                   </tr>
                 ) : (
-                  stock.map(item => {
+                  currentStock.map(item => {
                     const stockVal = parseFloat(item.current_stock) * parseFloat(item.purchase_price);
                     return (
                       <tr key={item.id}>
@@ -271,6 +320,35 @@ export default function Reports() {
                 )}
               </tbody>
             </table>
+
+            {stock.length > 0 && (
+              <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <div>
+                  Showing {((stockPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(stockPage * ITEMS_PER_PAGE, stock.length)} of {stock.length} item{stock.length !== 1 ? 's' : ''}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn-secondary" 
+                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                    disabled={stockPage === 1}
+                    onClick={() => setStockPage(p => Math.max(1, p - 1))}
+                  >
+                    Prev
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', fontWeight: '600' }}>
+                    Page {stockPage} of {totalStockPages}
+                  </div>
+                  <button 
+                    className="btn-secondary" 
+                    style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                    disabled={stockPage === totalStockPages}
+                    onClick={() => setStockPage(p => Math.min(totalStockPages, p + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

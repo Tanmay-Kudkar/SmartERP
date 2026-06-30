@@ -34,6 +34,19 @@ const useStore = create((set) => ({
     document.documentElement.setAttribute('data-theme', t);
     set({ theme: t });
   },
+
+  // Shortcut Usage Tracking (per company)
+  shortcutUsage: JSON.parse(localStorage.getItem('shortcutUsage') || '{}'),
+  trackShortcut: (companyId, kbd) => {
+    if (!companyId) return;
+    set((state) => {
+      const current = { ...state.shortcutUsage };
+      if (!current[companyId]) current[companyId] = {};
+      current[companyId][kbd] = (current[companyId][kbd] || 0) + 1;
+      localStorage.setItem('shortcutUsage', JSON.stringify(current));
+      return { shortcutUsage: current };
+    });
+  },
 }));
 
 export default useStore;

@@ -9,7 +9,9 @@ export default function StockItemList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  const ITEMS_PER_PAGE = 10;
 
   const fetchItems = async () => {
     setLoading(true);
@@ -25,7 +27,13 @@ export default function StockItemList() {
     }
   };
 
-  useEffect(() => { fetchItems(); }, [search]);
+  useEffect(() => { 
+    setPage(1);
+    fetchItems(); 
+  }, [search]);
+
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const currentItems = items.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Delete "${name}"?`)) return;
@@ -81,7 +89,7 @@ export default function StockItemList() {
                 </tr>
               </thead>
               <tbody>
-                {items.map(item => (
+                {currentItems.map(item => (
                   <tr key={item.id}>
                     <td data-label="Item Name">
                       <div style={{ fontWeight: '600' }}>{item.name}</div>
@@ -127,8 +135,33 @@ export default function StockItemList() {
       </div>
 
       {!loading && items.length > 0 && (
-        <div style={{ marginTop: '0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          {items.length} item{items.length !== 1 ? 's' : ''} · {items.filter(i => i.current_stock <= i.reorder_level && i.reorder_level > 0).length} low stock
+        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <div>
+            Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, items.length)} of {items.length} item{items.length !== 1 ? 's' : ''}
+            {items.filter(i => i.current_stock <= i.reorder_level && i.reorder_level > 0).length > 0 && 
+              ` · ${items.filter(i => i.current_stock <= i.reorder_level && i.reorder_level > 0).length} low stock`}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Prev
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', fontWeight: '600' }}>
+              Page {page} of {totalPages}
+            </div>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              disabled={page === totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

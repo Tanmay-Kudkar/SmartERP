@@ -15,7 +15,9 @@ export default function VoucherList() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  const ITEMS_PER_PAGE = 10;
 
   const fetchVouchers = async () => {
     setLoading(true);
@@ -32,7 +34,13 @@ export default function VoucherList() {
     }
   };
 
-  useEffect(() => { fetchVouchers(); }, [typeFilter, search]);
+  useEffect(() => { 
+    setPage(1); 
+    fetchVouchers(); 
+  }, [typeFilter, search]);
+
+  const totalPages = Math.ceil(vouchers.length / ITEMS_PER_PAGE);
+  const currentVouchers = vouchers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleCancel = async (id, num) => {
     if (!window.confirm(`Cancel voucher ${num}? This will reverse stock changes.`)) return;
@@ -105,7 +113,7 @@ export default function VoucherList() {
                 </tr>
               </thead>
               <tbody>
-                {vouchers.map(v => {
+                {currentVouchers.map(v => {
                   const tc = TYPE_CONFIG[v.voucher_type] || {};
                   return (
                     <tr key={v.id}>
@@ -150,8 +158,31 @@ export default function VoucherList() {
       </div>
 
       {!loading && vouchers.length > 0 && (
-        <div style={{ marginTop: '0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          {vouchers.length} voucher{vouchers.length !== 1 ? 's' : ''} total
+        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <div>
+            Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, vouchers.length)} of {vouchers.length} vouchers
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Prev
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', fontWeight: '600' }}>
+              Page {page} of {totalPages}
+            </div>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              disabled={page === totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

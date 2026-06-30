@@ -18,7 +18,9 @@ export default function LedgerList() {
   const [ledgers, setLedgers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  const ITEMS_PER_PAGE = 10;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const typeFilter = searchParams.get('type') || '';
@@ -48,7 +50,13 @@ export default function LedgerList() {
     }
   };
 
-  useEffect(() => { fetchLedgers(); }, [search, typeFilter]);
+  useEffect(() => { 
+    setPage(1);
+    fetchLedgers(); 
+  }, [typeFilter, search]);
+
+  const totalPages = Math.ceil(ledgers.length / ITEMS_PER_PAGE);
+  const currentLedgers = ledgers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Delete ledger "${name}"?`)) return;
@@ -144,7 +152,7 @@ export default function LedgerList() {
                 </tr>
               </thead>
               <tbody>
-                {ledgers.map(l => (
+                {currentLedgers.map(l => (
                   <tr key={l.id}>
                     <td data-label="Name">
                       <div style={{ fontWeight: '600' }}>{l.name}</div>
@@ -180,8 +188,31 @@ export default function LedgerList() {
       </div>
 
       {!loading && ledgers.length > 0 && (
-        <div style={{ marginTop: '0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-          Showing {ledgers.length} ledger{ledgers.length !== 1 ? 's' : ''}
+        <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <div>
+            Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, ledgers.length)} of {ledgers.length} ledger{ledgers.length !== 1 ? 's' : ''}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Prev
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', fontWeight: '600' }}>
+              Page {page} of {totalPages}
+            </div>
+            <button 
+              className="btn-secondary" 
+              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              disabled={page === totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

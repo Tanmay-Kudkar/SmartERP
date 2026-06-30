@@ -5,10 +5,11 @@ import toast from 'react-hot-toast';
 import { Building2, Plus, Pencil, Trash2, ChevronRight, Zap, LogOut, Moon, Sun, Calendar } from 'lucide-react';
 import api from '../api/client';
 import useStore from '../store/useStore';
+import YearSelectInput from '../components/YearSelectInput';
 
 function CompanyCard({ company, onSelect, onEdit, onDelete }) {
   return (
-    <div className="glass-card" style={{ padding: '1.25rem', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }}
+    <div className="glass-card kbd-navigable" style={{ padding: '1.25rem', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }}
       onClick={() => onSelect(company)}
       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
@@ -25,87 +26,15 @@ function CompanyCard({ company, onSelect, onEdit, onDelete }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button className="btn-icon" style={{ padding: '0.35rem' }} onClick={e => { e.stopPropagation(); onEdit(company); }}>
+          <button className="btn-icon" style={{ padding: '0.35rem' }} onClick={e => { e.stopPropagation(); onEdit(company); }} title="Edit">
             <Pencil size={14} />
           </button>
-          <button className="btn-icon" style={{ padding: '0.35rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444' }} onClick={e => { e.stopPropagation(); onDelete(company); }}>
+          <button className="btn-icon" style={{ padding: '0.35rem', borderColor: 'rgba(239,68,68,0.3)', color: '#ef4444' }} onClick={e => { e.stopPropagation(); onDelete(company); }} title="Delete">
             <Trash2 size={14} />
           </button>
           <ChevronRight size={18} color="var(--text-muted)" />
         </div>
       </div>
-    </div>
-  );
-}
-
-function YearSelectInput({ value, onChange }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [tempYear, setTempYear] = useState(value);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div style={{ position: 'relative' }} ref={ref}>
-      <div 
-        className="erp-input" 
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--bg-secondary)' }}
-        onClick={() => {
-          setTempYear(value);
-          setIsOpen(!isOpen);
-        }}
-      >
-        <span>1st April {value} to 31st March {value + 1}</span>
-        <Calendar size={16} color="var(--text-muted)" />
-      </div>
-
-      {isOpen && (
-        <div className="animate-fade-in" style={{ position: 'absolute', bottom: '100%', left: 0, minWidth: '220px', background: 'var(--bg-elevated)', border: '1px solid var(--accent-blue)', borderRadius: '8px', padding: '0.875rem', marginBottom: '0.5rem', zIndex: 50, boxShadow: '0 -10px 25px rgba(0,0,0,0.4)' }}>
-          <label className="erp-label">Enter Start Year (1800 - 2100)</label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input 
-              type="number" 
-              min="1800" max="2100" 
-              className="erp-input" 
-              style={{ flex: 1, minWidth: '100px', background: 'var(--bg-card)' }}
-              value={tempYear} 
-              onChange={e => setTempYear(parseInt(e.target.value) || '')} 
-              autoFocus
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (tempYear >= 1800 && tempYear <= 2100) {
-                    onChange(tempYear);
-                    setIsOpen(false);
-                  } else {
-                    toast.error("Year must be between 1800 and 2100");
-                  }
-                }
-              }}
-            />
-            <button 
-              type="button" 
-              className="btn-primary" 
-              onClick={() => {
-                if (tempYear >= 1800 && tempYear <= 2100) {
-                  onChange(tempYear);
-                  setIsOpen(false);
-                } else {
-                  toast.error("Year must be between 1800 and 2100");
-                }
-              }}
-            >
-              Apply
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -342,7 +271,7 @@ export default function CompanySelection() {
 
             {companies.length < 5 && (
               <button
-                className="glass-card"
+                className="glass-card kbd-navigable"
                 style={{ padding: '1.25rem', border: '2px dashed var(--border)', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--text-muted)', fontSize: '0.875rem', fontWeight: '600', transition: 'all 0.2s', width: '100%', borderRadius: '12px' }}
                 onClick={() => { setEditCompany(null); setShowModal(true); }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-blue)'; e.currentTarget.style.color = 'var(--accent-blue)'; }}
