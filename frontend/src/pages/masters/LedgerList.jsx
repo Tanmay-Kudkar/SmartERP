@@ -4,6 +4,7 @@ import { Plus, Search, Pencil, Trash2, BookOpen, Filter } from 'lucide-react';
 import api from '../../api/client';
 import toast from 'react-hot-toast';
 import NeonSweepButton from '../../components/NeonSweepButton';
+import CustomSelect from '../../components/CustomSelect';
 
 const TYPE_LABELS = {
   customer: { label: 'Customer', plural: 'customers', color: '#10b981', badge: 'badge-green' },
@@ -87,10 +88,15 @@ export default function LedgerList() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input className="erp-input" style={{ paddingLeft: '2.25rem' }} placeholder="Search ledgers..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="erp-select" style={{ width: 'auto', minWidth: '140px' }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="">All Types</option>
-          {Object.entries(TYPE_LABELS).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
-        </select>
+        <CustomSelect 
+          value={typeFilter} 
+          onChange={setTypeFilter}
+          options={[
+            { label: 'All Types', value: '' },
+            ...Object.entries(TYPE_LABELS).map(([v, { label }]) => ({ label, value: v }))
+          ]}
+          style={{ width: '180px' }}
+        />
       </div>
 
       {/* Table */}

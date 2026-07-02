@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Search, Eye, Trash2, ShoppingCart, Truck, Receipt } from 'lucide-react';
 import api from '../../api/client';
+import CustomSelect from '../../components/CustomSelect';
 import toast from 'react-hot-toast';
 import NeonSweepButton from '../../components/NeonSweepButton';
 
@@ -76,11 +77,16 @@ export default function VoucherList() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input className="erp-input" style={{ paddingLeft: '2.25rem' }} placeholder="Search by voucher no. or party..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="erp-select" style={{ width: 'auto', minWidth: '140px' }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="">All Types</option>
-          <option value="sales">Sales</option>
-          <option value="purchase">Purchase</option>
-        </select>
+        <CustomSelect 
+          value={typeFilter} 
+          onChange={setTypeFilter}
+          options={[
+            { label: 'All Types', value: '' },
+            { label: 'Sales', value: 'sales' },
+            { label: 'Purchase', value: 'purchase' }
+          ]}
+          style={{ width: '180px' }}
+        />
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>

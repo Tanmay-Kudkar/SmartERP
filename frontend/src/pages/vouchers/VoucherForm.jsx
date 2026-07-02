@@ -5,13 +5,36 @@ import { ArrowLeft, Plus, Trash2, Save, Eye, Printer } from 'lucide-react';
 import api from '../../api/client';
 import useStore from '../../store/useStore';
 import NeonSweepButton from '../../components/NeonSweepButton';
+import CustomSelect from '../../components/CustomSelect';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const today = () => new Date().toISOString().split('T')[0];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const YEARS = Array.from({ length: 120 }, (_, i) => new Date().getFullYear() - 80 + i);
 
 const formatNumber = (num) => Number(num || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function LineItem({ index, item, onUpdate, onRemove, stockItems, units, isSales }) {
+function LineItem({ index, item, onUpdate, onRemove, stockItems, units, isSales, items }) {
+  const [totalFlash, setTotalFlash] = useState(false);
+  const prevTotalRef = useRef(item.total_amount);
+
+  useEffect(() => {
+    if (item.total_amount !== prevTotalRef.current) {
+      setTotalFlash(true);
+      const timer = setTimeout(() => setTotalFlash(false), 500);
+      prevTotalRef.current = item.total_amount;
+      return () => clearTimeout(timer);
+    }
+  }, [item.total_amount]);
+
   const handleItemChange = (stockItemId) => {
+    // Check for duplicate
+    if (stockItemId && items.some((it, i) => i !== index && String(it.stock_item_id) === String(stockItemId))) {
+      toast.error('Item is already added to the voucher');
+      return;
+    }
+
     const found = stockItems.find(s => String(s.id) === String(stockItemId));
     if (found) {
       const rate = isSales
@@ -57,97 +80,292 @@ function LineItem({ index, item, onUpdate, onRemove, stockItems, units, isSales 
   // resolve unit symbol (may come from auto-fill or lookup)
   const unitSymbol = item.unit_symbol || units.find(u => String(u.id) === String(item.unit_id))?.symbol || '';
 
+  const displayQty = parseFloat(item.quantity) || 0;
+  const displayRate = parseFloat(item.rate) || 0;
+  const displayDiscPct = parseFloat(item.discount_percent) || 0;
+  const displayGross = displayQty * displayRate;
+  const displayDiscAmt = (displayGross * displayDiscPct) / 100;
+  const displayGstPct = parseFloat(item.gst_percentage) || 0;
+  const displayTaxable = parseFloat(item.taxable_amount) || 0;
+  const displayGstAmt = (displayTaxable * displayGstPct) / 100;
+
   return (
-    <tr style={{ verticalAlign: 'top' }}>
-      {/* ITEM — auto-fills all metadata on change */}
-      <td data-label="Item" style={{ paddingTop: '0.75rem', position: 'relative' }} className="item-cell-hover">
-        <input
-          className="erp-input"
-          list={`item-list-${index}`}
-          placeholder="Search Item..."
-          style={{ minWidth: '160px', fontSize: '0.8rem' }}
-          value={item.item_name || ''}
-          onChange={e => {
-            const val = e.target.value;
-            const found = stockItems.find(s => s.name === val);
-            if (found) {
-              handleItemChange(found.id);
-            } else {
+    <>
+      {/* DESKTOP VIEW: Standard Table Row */}
+      <tr className="desktop-only-row" style={{ verticalAlign: 'top' }}>
+        {/* ITEM SELECT */}
+        <td style={{ paddingTop: '0.75rem', position: 'relative' }}>
+          <CustomSelect
+            searchable
+            value={item.stock_item_id || ''}
+            placeholder="Search Item..."
+            options={stockItems.map(s => ({ 
+              label: s.name, 
+              value: s.id,
+              render: () => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
+                  <div style={{ fontWeight: '600' }}>
+                    <span>{s.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    <span className="select-opt-subtitle">{s.group_name || 'Stock Item'}</span>
+                    <span className="select-opt-price" style={{ fontWeight: '700', color: 'var(--accent-blue)' }}>₹{formatNumber(isSales ? s.selling_price : s.purchase_price)}</span>
+                  </div>
+                </div>
+              )
+            }))}
+            onChange={(id) => handleItemChange(id)}
+            onSearchChange={(val) => {
               onUpdate(index, { ...item, item_name: val, stock_item_id: '' });
-            }
-          }}
-          onFocus={e => e.target.select()}
-        />
-        <datalist id={`item-list-${index}`}>
-          {stockItems.map(s => <option key={s.id} value={s.name} />)}
-        </datalist>
-        {/* Read-only info shown as tooltip on hover */}
-        {item.stock_item_id && (
-          <div className="hover-badges" style={{
-            position: 'absolute',
-            top: '3.2rem',
-            left: '0.75rem',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            padding: '0.4rem 0.6rem',
-            borderRadius: '6px',
-            display: 'flex',
-            gap: '0.4rem',
-            zIndex: 100,
-            whiteSpace: 'nowrap',
-            pointerEvents: 'none',
-            opacity: 0,
-            visibility: 'hidden',
-            transition: 'all 0.2s',
-          }}>
-            {item.hsn_code    && <span style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8', borderRadius: '4px', padding: '2px 6px', fontSize: '0.68rem', fontWeight: '600' }}>HSN: {item.hsn_code}</span>}
-            {unitSymbol       && <span style={{ background: 'rgba(16,185,129,0.12)', color: '#34d399', borderRadius: '4px', padding: '2px 6px', fontSize: '0.68rem', fontWeight: '600' }}>{unitSymbol}</span>}
-            {item.gst_percentage > 0 && <span style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', borderRadius: '4px', padding: '2px 6px', fontSize: '0.68rem', fontWeight: '600' }}>GST {item.gst_percentage}%</span>}
+            }}
+            innerStyle={{ minWidth: '160px', fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
+          />
+        </td>
+
+        {/* QTY STEPPER */}
+        <td style={{ paddingTop: '0.75rem' }}>
+          <div className="stepper-container">
+            <button type="button" className="stepper-btn" onClick={() => {
+              const current = parseFloat(item.quantity) || 0;
+              if (current > 1) handleChange('quantity', Math.max(0, current - 1));
+            }}>-</button>
+            <input className="stepper-input" type="number" step="1"
+              value={item.quantity === '' ? '' : item.quantity} 
+              onChange={e => handleChange('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} 
+              onFocus={e => e.target.select()}
+              onWheel={e => e.target.blur()}
+              onBlur={e => { if (e.target.value === '') handleChange('quantity', 1); }}
+              placeholder="1" min="1" />
+            <button type="button" className="stepper-btn" onClick={() => {
+              const current = parseFloat(item.quantity) || 0;
+              handleChange('quantity', current + 1);
+            }}>+</button>
           </div>
-        )}
-      </td>
+        </td>
 
-      {/* QTY */}
-      <td data-label="Qty" style={{ paddingTop: '0.75rem' }}>
-        <input className="erp-input" style={{ width: '80px', fontSize: '0.8rem' }} type="number" step="0.001"
-          value={item.quantity || ''} onChange={e => handleChange('quantity', e.target.value)} placeholder="0" min="0" />
-      </td>
+        {/* RATE */}
+        <td style={{ paddingTop: '0.75rem' }}>
+          <input className="erp-input" style={{ width: '90px', fontSize: '0.85rem' }} type="number" step="0.01"
+            value={item.rate === '' ? '' : item.rate} 
+            onChange={e => handleChange('rate', e.target.value.replace(/^0+(?=\d)/, ''))} 
+            onFocus={e => e.target.select()}
+            onWheel={e => e.target.blur()}
+            onBlur={e => { if (e.target.value === '') handleChange('rate', 0); }}
+            placeholder="0.00" />
+        </td>
 
-      {/* RATE — pre-filled but editable */}
-      <td data-label="Rate (₹)" style={{ paddingTop: '0.75rem' }}>
-        <input className="erp-input" style={{ width: '100px', fontSize: '0.8rem' }} type="number" step="0.01"
-          value={item.rate || ''} onChange={e => handleChange('rate', e.target.value)} placeholder="0.00" />
-      </td>
+        {/* DISC % */}
+        <td style={{ paddingTop: '0.75rem' }}>
+          <input className="erp-input" style={{ width: '60px', fontSize: '0.85rem' }} type="number" step="0.01"
+            value={item.discount_percent === '' ? '' : item.discount_percent} 
+            onChange={e => handleChange('discount_percent', e.target.value.replace(/^0+(?=\d)/, ''))} 
+            onFocus={e => e.target.select()}
+            onWheel={e => e.target.blur()}
+            onBlur={e => { if (e.target.value === '') handleChange('discount_percent', 0); }}
+            placeholder="0" />
+        </td>
 
-      {/* DISC % */}
-      <td data-label="Disc %" style={{ paddingTop: '0.75rem' }}>
-        <input className="erp-input" style={{ width: '60px', fontSize: '0.8rem' }} type="number" step="0.01"
-          value={item.discount_percent || 0} onChange={e => handleChange('discount_percent', e.target.value)} placeholder="0" />
-      </td>
+        {/* DISC AMT */}
+        <td style={{ textAlign: 'right', fontSize: '0.85rem', color: '#f97316', paddingTop: '0.75rem', whiteSpace: 'nowrap' }}>
+          {displayDiscAmt > 0 ? (
+            <span style={{ fontWeight: '600' }}>- ₹{formatNumber(displayDiscAmt)}</span>
+          ) : <span style={{ color: 'var(--text-muted)' }}>-</span>}
+        </td>
 
-      {/* TAXABLE */}
-      <td data-label="Taxable" style={{ textAlign: 'right', fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap', paddingTop: '0.75rem' }}>
-        ₹{formatNumber(item.taxable_amount)}
-      </td>
+        {/* GST % */}
+        <td style={{ paddingTop: '0.75rem' }}>
+          <input className="erp-input" style={{ width: '60px', fontSize: '0.85rem' }} type="number" step="0.01"
+            value={item.gst_percentage === '' ? '' : item.gst_percentage} 
+            onChange={e => handleChange('gst_percentage', e.target.value.replace(/^0+(?=\d)/, ''))} 
+            onFocus={e => e.target.select()}
+            onWheel={e => e.target.blur()}
+            onBlur={e => { if (e.target.value === '') handleChange('gst_percentage', 0); }}
+            placeholder="0" />
+        </td>
 
-      {/* TOTAL */}
-      <td data-label="Total" style={{ textAlign: 'right', fontWeight: '700', fontSize: '0.85rem', color: '#10b981', whiteSpace: 'nowrap', paddingTop: '0.75rem' }}>
-        ₹{formatNumber(item.total_amount)}
-      </td>
+        {/* TAXABLE */}
+        <td style={{ textAlign: 'right', fontSize: '0.85rem', paddingTop: '0.75rem', whiteSpace: 'nowrap' }}>
+          <span className={totalFlash ? 'flash-active' : ''} style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+            ₹{formatNumber(item.taxable_amount)}
+          </span>
+        </td>
 
-      {/* ACTION */}
-      <td data-label="Action" className="action-cell" style={{ textAlign: 'right', paddingTop: '0.75rem' }}>
-        <button 
-          className="btn-icon" 
-          style={{ color: '#ef4444', padding: '0.4rem', border: 'none', background: 'transparent' }} 
-          title="Remove row (Delete)" 
-          onClick={() => onRemove(index)}
-        >
-          <Trash2 size={16} />
-        </button>
-      </td>
-    </tr>
+        {/* GST AMT */}
+        <td style={{ textAlign: 'right', fontSize: '0.85rem', paddingTop: '0.75rem', whiteSpace: 'nowrap' }}>
+          {displayGstAmt > 0 ? (
+            <span className={`color-blue ${totalFlash ? 'flash-active' : ''}`} style={{ fontWeight: '600' }}>
+              + ₹{formatNumber(displayGstAmt)}
+            </span>
+          ) : <span style={{ color: 'var(--text-muted)' }}>-</span>}
+        </td>
+
+        {/* TOTAL */}
+        <td style={{ textAlign: 'right', fontSize: '0.85rem', whiteSpace: 'nowrap', paddingTop: '0.75rem' }}>
+          <span className={`color-green ${totalFlash ? 'flash-active' : ''}`} style={{ fontWeight: '800' }}>
+            ₹{formatNumber(item.total_amount)}
+          </span>
+        </td>
+
+        {/* ACTION */}
+        <td className="action-cell" style={{ textAlign: 'right', paddingTop: '0.75rem' }}>
+          <button 
+            type="button"
+            className="btn-icon" 
+            style={{ color: '#ef4444ff', padding: '0.4rem', border: 'none', background: 'transparent' }} 
+            title="Remove row (Delete)" 
+            onClick={() => onRemove(index)}
+          >
+            <Trash2 size={16} />
+          </button>
+        </td>
+      </tr>
+
+      {/* MOBILE VIEW: Premium Card Row */}
+      <tr className="mobile-only-row">
+        <td colSpan={10} style={{ padding: '0.5rem 0', borderBottom: 'none' }}>
+          <div className="mobile-item-card">
+            {/* Header: Select & Delete */}
+            <div style={{ gridColumn: 'span 12', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <CustomSelect
+                searchable
+                value={item.stock_item_id || ''}
+                placeholder="Search Item..."
+                options={stockItems.map(s => ({ 
+                  label: s.name, 
+                  value: s.id,
+                  render: () => (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
+                      <div style={{ fontWeight: '600' }}>
+                        <span>{s.name}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        <span className="select-opt-subtitle">{s.group_name || 'Stock Item'}</span>
+                        <span className="select-opt-price" style={{ fontWeight: '700', color: 'var(--accent-blue)' }}>₹{formatNumber(isSales ? s.selling_price : s.purchase_price)}</span>
+                      </div>
+                    </div>
+                  )
+                }))}
+                onChange={(id) => handleItemChange(id)}
+                onSearchChange={(val) => {
+                  onUpdate(index, { ...item, item_name: val, stock_item_id: '' });
+                }}
+                innerStyle={{ minWidth: '160px', fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
+              />
+              <button type="button" className="mobile-delete-btn" onClick={() => onRemove(index)} title="Remove row">
+                <Trash2 size={16} />
+              </button>
+            </div>
+
+            {/* Basic Details Section */}
+            <div className="mobile-section-header">Basic Details</div>
+            <div style={{ gridColumn: 'span 6' }}>
+              <label className="erp-label">📦 Qty</label>
+              <div className="stepper-container">
+                <button type="button" className="stepper-btn" onClick={() => {
+                  const current = parseFloat(item.quantity) || 0;
+                  if (current > 1) handleChange('quantity', Math.max(0, current - 1));
+                }}>-</button>
+                <input className="stepper-input" type="number" step="1"
+                  value={item.quantity === '' ? '' : item.quantity} 
+                  onChange={e => handleChange('quantity', e.target.value.replace(/^0+(?=\d)/, ''))} 
+                  onFocus={e => e.target.select()}
+                  onWheel={e => e.target.blur()}
+                  onBlur={e => { if (e.target.value === '') handleChange('quantity', 1); }}
+                  placeholder="1" min="1" />
+                <button type="button" className="stepper-btn" onClick={() => {
+                  const current = parseFloat(item.quantity) || 0;
+                  handleChange('quantity', current + 1);
+                }}>+</button>
+              </div>
+            </div>
+            <div style={{ gridColumn: 'span 6' }}>
+              <label className="erp-label">💰 Rate (₹)</label>
+              <input className="erp-input" type="number" step="0.01"
+                value={item.rate === '' ? '' : item.rate} 
+                onChange={e => handleChange('rate', e.target.value.replace(/^0+(?=\d)/, ''))} 
+                onFocus={e => e.target.select()}
+                onWheel={e => e.target.blur()}
+                onBlur={e => { if (e.target.value === '') handleChange('rate', 0); }}
+                placeholder="0.00" />
+            </div>
+
+            {/* Pricing Section */}
+            <div className="mobile-section-header">Pricing</div>
+            <div style={{ gridColumn: 'span 6' }}>
+              <label className="erp-label">🏷️ Disc %</label>
+              <input className="erp-input" type="number" step="0.01"
+                value={item.discount_percent === '' ? '' : item.discount_percent} 
+                onChange={e => handleChange('discount_percent', e.target.value.replace(/^0+(?=\d)/, ''))} 
+                onFocus={e => e.target.select()}
+                onWheel={e => e.target.blur()}
+                onBlur={e => { if (e.target.value === '') handleChange('discount_percent', 0); }}
+                placeholder="0" />
+            </div>
+            <div style={{ gridColumn: 'span 6', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
+              <label className="erp-label">Discount Value</label>
+              {displayDiscAmt > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                  <span className="color-orange" style={{ fontWeight: '700', fontSize: '0.9rem' }}>- ₹{formatNumber(displayDiscAmt)}</span>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <span className="disc-badge">🏷️ {displayDiscPct}% OFF</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Saved ₹{formatNumber(displayDiscAmt)} 🎉</span>
+                  </div>
+                </div>
+              ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>-</span>}
+            </div>
+
+            {/* Tax Section */}
+            <div className="mobile-section-header">Tax</div>
+            <div style={{ gridColumn: 'span 6' }}>
+              <label className="erp-label">🧾 GST %</label>
+              <input className="erp-input" type="number" step="0.01"
+                value={item.gst_percentage === '' ? '' : item.gst_percentage} 
+                onChange={e => handleChange('gst_percentage', e.target.value.replace(/^0+(?=\d)/, ''))} 
+                onFocus={e => e.target.select()}
+                onWheel={e => e.target.blur()}
+                onBlur={e => { if (e.target.value === '') handleChange('gst_percentage', 0); }}
+                placeholder="0" />
+            </div>
+
+            {/* Summary Section Header */}
+            <div className="mobile-section-header">Summary</div>
+
+            {/* Mobile Summary Grid block styled as a unified green card */}
+            <div style={{ 
+              gridColumn: 'span 12', 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr auto', 
+              gap: '0.5rem', 
+              background: 'rgba(16, 185, 129, 0.04)', 
+              border: '1.5px dashed rgba(16, 185, 129, 0.15)', 
+              borderRadius: '12px', 
+              padding: '0.75rem' 
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span className="erp-label" style={{ marginBottom: '2px', fontSize: '0.65rem' }}>Taxable</span>
+                <span className={totalFlash ? 'flash-active' : ''} style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  ₹{formatNumber(item.taxable_amount)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span className="erp-label" style={{ marginBottom: '2px', fontSize: '0.65rem' }}>GST</span>
+                {displayGstAmt > 0 ? (
+                  <span className={`color-blue ${totalFlash ? 'flash-active' : ''}`} style={{ fontSize: '0.9rem', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    + ₹{formatNumber(displayGstAmt)}
+                  </span>
+                ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>-</span>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '8px', padding: '4px 8px', minWidth: 0 }}>
+                <span className="erp-label" style={{ color: '#10b981', marginBottom: '2px', fontSize: '0.65rem' }}>Total</span>
+                <span className={`color-green ${totalFlash ? 'flash-active' : ''}`} style={{ fontSize: '1.05rem', fontWeight: '800', whiteSpace: 'nowrap' }}>
+                  ₹{formatNumber(item.total_amount)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </>
   );
 }
 
@@ -222,6 +440,10 @@ export default function VoucherForm({ voucherType = 'sales' }) {
   const totalSgst = isInterstate ? 0 : items.reduce((s, i) => s + (parseFloat(i.taxable_amount) || 0) * (parseFloat(i.gst_percentage) || 0) / 200, 0);
   const totalIgst = isInterstate ? items.reduce((s, i) => s + (parseFloat(i.taxable_amount) || 0) * (parseFloat(i.gst_percentage) || 0) / 100, 0) : 0;
   const totalGst = totalCgst + totalSgst + totalIgst;
+  
+  const effectiveDiscountPct = subtotal > 0 ? (totalDiscount / subtotal) * 100 : 0;
+  const effectiveGstPct = taxable > 0 ? (totalGst / taxable) * 100 : 0;
+  
   const grandTotal = taxable + totalGst;
   const balance = grandTotal - (parseFloat(paidAmount) || 0);
 
@@ -271,24 +493,24 @@ export default function VoucherForm({ voucherType = 'sales' }) {
       <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
           <div>
-            <label className="erp-label">{isSales ? 'Customer' : 'Supplier'} *</label>
-            <input
-              className="erp-input"
-              list="party-list"
+            <label className="erp-label">{isSales ? 'Customer' : 'Supplier'} <span style={{ color: '#ef4444' }}>*</span></label>
+            <CustomSelect
+              searchable
+              value={partyId}
               placeholder={`Search ${isSales ? 'customer' : 'supplier'}...`}
-              value={partyName}
-              onChange={e => {
-                const val = e.target.value;
-                setPartyName(val);
-                const found = parties.find(p => p.name === val);
-                if (found) setPartyId(found.id);
-                else setPartyId('');
+              options={parties.map(p => ({ label: p.name, value: p.id }))}
+              onChange={(id) => {
+                const found = parties.find(p => p.id === id);
+                if (found) {
+                  setPartyId(id);
+                  setPartyName(found.name);
+                }
               }}
-              onFocus={e => e.target.select()}
+              onSearchChange={(val) => {
+                setPartyName(val);
+                setPartyId('');
+              }}
             />
-            <datalist id="party-list">
-              {parties.map(p => <option key={p.id} value={p.name} />)}
-            </datalist>
             {parties.length === 0 && (
               <p style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '0.25rem' }}>
                 No {isSales ? 'customers' : 'suppliers'} found. <a href={`/ledgers/new?type=${isSales ? 'customer' : 'supplier'}`} style={{ color: 'var(--accent-blue)' }}>Create one</a>
@@ -296,18 +518,63 @@ export default function VoucherForm({ voucherType = 'sales' }) {
             )}
           </div>
           <div>
-            <label className="erp-label">Voucher Date *</label>
-            <input className="erp-input" type="date" value={date} onChange={e => setDate(e.target.value)} />
+            <label className="erp-label">Voucher Date <span style={{ color: '#ef4444' }}>*</span></label>
+            <div className="custom-datepicker-wrapper">
+              <DatePicker
+                selected={new Date(date)}
+                onChange={d => {
+                  if(d) {
+                    const offset = d.getTimezoneOffset();
+                    const adjusted = new Date(d.getTime() - (offset*60*1000));
+                    setDate(adjusted.toISOString().split('T')[0]);
+                  }
+                }}
+                dateFormat="dd-MM-yyyy"
+                className="erp-input"
+                renderCustomHeader={({
+                  date,
+                  changeYear,
+                  changeMonth,
+                  decreaseMonth,
+                  increaseMonth,
+                  prevMonthButtonDisabled,
+                  nextMonthButtonDisabled,
+                }) => (
+                  <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', alignItems: 'center' }}>
+                    <button type="button" onClick={decreaseMonth} disabled={prevMonthButtonDisabled} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)' }}>{'<'}</button>
+                    <CustomSelect
+                      value={date.getMonth()}
+                      onChange={changeMonth}
+                      options={MONTHS.map((m, i) => ({ label: m, value: i }))}
+                      style={{ flex: 1.2, minWidth: '90px' }}
+                      innerStyle={{ minHeight: '28px', padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                    />
+                    <CustomSelect
+                      value={date.getFullYear()}
+                      onChange={changeYear}
+                      options={YEARS.map(y => ({ label: y.toString(), value: y }))}
+                      style={{ flex: 1, minWidth: '70px' }}
+                      innerStyle={{ minHeight: '28px', padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                    />
+                    <button type="button" onClick={increaseMonth} disabled={nextMonthButtonDisabled} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)' }}>{'>'}</button>
+                  </div>
+                )}
+              />
+            </div>
           </div>
           <div>
             <label className="erp-label">Payment Mode</label>
-            <select className="erp-select" value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
-              <option value="credit">⏳ Credit</option>
-              <option value="cash">💵 Cash</option>
-              <option value="bank">🏦 Bank Transfer</option>
-              <option value="upi">📱 UPI</option>
-              <option value="card">💳 Card</option>
-            </select>
+            <CustomSelect
+              value={paymentMode}
+              onChange={setPaymentMode}
+              options={[
+                { label: '⏳ Credit', value: 'credit' },
+                { label: '💵 Cash', value: 'cash' },
+                { label: '🏦 Bank Transfer', value: 'bank' },
+                { label: '📱 UPI', value: 'upi' },
+                { label: '💳 Card', value: 'card' }
+              ]}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', paddingBottom: '0.5rem' }}>
@@ -317,17 +584,29 @@ export default function VoucherForm({ voucherType = 'sales' }) {
           </div>
           <div style={{ gridColumn: '1/-1' }}>
             <label className="erp-label">Narration</label>
-            <input className="erp-input" value={narration} onChange={e => setNarration(e.target.value)} placeholder="Optional note about this voucher" />
+            <textarea 
+              className="erp-input" 
+              value={narration} 
+              onChange={e => {
+                setNarration(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }} 
+              placeholder="Optional note about this voucher... (Auto-expands as you type)" 
+              style={{ resize: 'none', minHeight: '80px', padding: '0.75rem', lineHeight: '1.5', overflow: 'hidden' }} 
+            />
           </div>
         </div>
       </div>
 
       {/* Line Items */}
-      <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div style={{ fontWeight: '700', fontSize: '0.875rem', color: 'var(--accent-blue)' }}>Items</div>
-          <button className="btn-secondary" style={{ padding: '0.375rem 0.875rem', fontSize: '0.8rem' }} onClick={addItem}>
-            <Plus size={14} /> Add Item
+      <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div style={{ fontWeight: '800', fontSize: '1rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>📦</span> Items ({items.length})
+          </div>
+          <button type="button" className="btn-primary" style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }} onClick={addItem}>
+            <span>➕</span> Add Product
           </button>
         </div>
         <div className="table-wrapper" style={{ paddingBottom: '2.5rem' }}>
@@ -335,17 +614,20 @@ export default function VoucherForm({ voucherType = 'sales' }) {
             <thead>
               <tr>
                 <th>Item</th>
-                <th>Qty</th>
-                <th>Rate (₹)</th>
-                <th>Disc %</th>
-                <th style={{ textAlign: 'right' }}>Taxable</th>
-                <th style={{ textAlign: 'right' }}>Total</th>
+                <th>📦 Qty</th>
+                <th>💰 Rate (₹)</th>
+                <th>🏷️ Disc %</th>
+                <th style={{ textAlign: 'right' }}>🏷️ Disc (₹)</th>
+                <th>🧾 GST %</th>
+                <th style={{ textAlign: 'right' }}>🧾 Taxable</th>
+                <th style={{ textAlign: 'right' }}>🧾 GST (₹)</th>
+                <th style={{ textAlign: 'right' }}>🟢 Total</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, idx) => (
-                <LineItem key={idx} index={idx} item={item} onUpdate={updateItem} onRemove={removeItem} stockItems={stockItems} units={units} isSales={isSales} />
+                <LineItem key={idx} index={idx} item={item} onUpdate={updateItem} onRemove={removeItem} stockItems={stockItems} units={units} isSales={isSales} items={items} />
               ))}
             </tbody>
           </table>
@@ -353,78 +635,92 @@ export default function VoucherForm({ voucherType = 'sales' }) {
       </div>
 
       {/* Totals + Save */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', alignItems: 'start' }}>
-        <div className="glass-card" style={{ padding: '1rem' }}>
-          <div style={{ fontWeight: '700', fontSize: '0.875rem', color: 'var(--accent-blue)', marginBottom: '1rem' }}>Payment Status</div>
+      <div className="voucher-totals-container">
+        {/* Payment Status Card */}
+        <div className="glass-card" style={{ padding: '1.5rem' }}>
+          <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--accent-blue)', marginBottom: '1.25rem' }}>Payment Status</div>
           <div>
             <label className="erp-label">Amount Received / Paid Now (₹)</label>
-            <input className="erp-input" type="number" step="0.01" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} placeholder="0.00" style={{ maxWidth: '200px' }} />
+            <input className="erp-input" type="number" step="0.01" min="0" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} placeholder="0.00" style={{ maxWidth: '200px' }} />
           </div>
-          <div style={{ marginTop: '0.75rem' }}>
+          <div style={{ marginTop: '1rem' }}>
             <label className="erp-label">Remarks</label>
-            <input className="erp-input" value={narration} onChange={e => setNarration(e.target.value)} placeholder="Payment remarks..." />
+            <textarea 
+              className="erp-input" 
+              value={narration} 
+              onChange={e => {
+                setNarration(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }} 
+              placeholder="Payment remarks... (Auto-expands as you type)" 
+              style={{ resize: 'none', minHeight: '80px', padding: '0.75rem', lineHeight: '1.5', overflow: 'hidden' }} 
+            />
           </div>
         </div>
 
-        <div className="glass-card" style={{ padding: '1.2rem', minWidth: '320px', position: 'sticky', top: '1.5rem' }}>
-          <div style={{ fontWeight: '700', fontSize: '0.875rem', color: 'var(--accent-blue)', marginBottom: '1rem' }}>Bill Summary</div>
+        {/* Premium Bill Summary Card */}
+        <div className="bill-summary-card" style={{ padding: '1.5rem', minWidth: '340px', position: 'sticky', top: '1.5rem' }}>
+          <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--accent-green)', marginBottom: '1.25rem' }}>🧾 Bill Summary</div>
           
           {/* Items Subtotal */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', fontSize: '0.9rem' }}>
             <span style={{ color: 'var(--text-secondary)' }}>Subtotal</span>
-            <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>₹{formatNumber(subtotal)}</span>
+            <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{formatNumber(subtotal)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Discount</span>
-            <span style={{ fontWeight: '600', color: '#ef4444' }}>- ₹{formatNumber(totalDiscount)}</span>
+
+          {/* Discount (Orange) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', fontSize: '0.9rem' }}>
+            <span className="color-orange" style={{ fontWeight: '600' }}>🏷️ Discount {effectiveDiscountPct > 0 ? `(${effectiveDiscountPct.toFixed(2).replace(/\.00$/, '')}%)` : ''}</span>
+            <span className="color-orange" style={{ fontWeight: '700' }}>- ₹{formatNumber(totalDiscount)}</span>
           </div>
           
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '0.75rem 0' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '1rem 0' }} />
           
-          {/* Taxes */}
+          {/* Taxes (Blue) */}
           {isInterstate ? (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>IGST</span>
-              <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>₹{formatNumber(totalIgst)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', fontSize: '0.9rem' }}>
+              <span className="color-blue" style={{ fontWeight: '600' }}>🧾 IGST {effectiveGstPct > 0 ? `(${effectiveGstPct.toFixed(2).replace(/\.00$/, '')}%)` : ''}</span>
+              <span className="color-blue" style={{ fontWeight: '700' }}>₹{formatNumber(totalIgst)}</span>
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>CGST</span>
-                <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>₹{formatNumber(totalCgst)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', fontSize: '0.9rem' }}>
+                <span className="color-blue" style={{ fontWeight: '600' }}>🧾 CGST {effectiveGstPct > 0 ? `(${(effectiveGstPct / 2).toFixed(2).replace(/\.00$/, '')}%)` : ''}</span>
+                <span className="color-blue" style={{ fontWeight: '700' }}>₹{formatNumber(totalCgst)}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>SGST</span>
-                <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>₹{formatNumber(totalSgst)}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.65rem', fontSize: '0.9rem' }}>
+                <span className="color-blue" style={{ fontWeight: '600' }}>🧾 SGST {effectiveGstPct > 0 ? `(${(effectiveGstPct / 2).toFixed(2).replace(/\.00$/, '')}%)` : ''}</span>
+                <span className="color-blue" style={{ fontWeight: '700' }}>₹{formatNumber(totalSgst)}</span>
               </div>
             </>
           )}
 
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '0.75rem 0' }} />
+          <hr style={{ border: 'none', borderTop: '1px solid rgba(16, 185, 129, 0.2)', margin: '1rem 0' }} />
 
-          {/* Totals */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: '800', marginBottom: '1rem' }}>
-            <span>Grand Total</span>
-            <span style={{ color: '#10b981' }}>₹{formatNumber(grandTotal)}</span>
+          {/* Totals (Green, Large font 22px) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>Grand Total</span>
+            <span className="color-green" style={{ fontSize: '1.5rem', fontWeight: '800', lineHeight: '1.2' }}>₹{formatNumber(grandTotal)}</span>
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Advance</span>
-            <span style={{ fontWeight: '600' }}>₹{formatNumber(paidAmount)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Advance Paid</span>
+            <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₹{formatNumber(paidAmount)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '0.875rem' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Balance Due</span>
-            <span style={{ fontWeight: '700', color: balance > 0 ? '#ef4444' : '#10b981' }}>₹{formatNumber(balance)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', paddingTop: '0.5rem', borderTop: '1px dashed rgba(16, 185, 129, 0.15)' }}>
+            <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Balance Due</span>
+            <span style={{ fontWeight: '800', color: balance > 0 ? '#ef4444' : '#10b981' }}>₹{formatNumber(balance)}</span>
           </div>
 
           <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <button className="btn-success" style={{ gridColumn: '1 / -1', justifyContent: 'center' }} onClick={handleSave} disabled={saving}>
+            <button type="button" className="btn-success" style={{ gridColumn: '1 / -1', justifyContent: 'center' }} onClick={handleSave} disabled={saving}>
               {saving ? 'Saving...' : `✓ Save ${isSales ? 'Sales' : 'Purchase'} Voucher`}
             </button>
-            <button className="btn-primary" style={{ justifyContent: 'center' }} onClick={handleSave} disabled={saving}>
+            <button type="button" className="btn-primary" style={{ justifyContent: 'center' }} onClick={handleSave} disabled={saving}>
               Save & Print
             </button>
-            <button className="btn-secondary" style={{ justifyContent: 'center' }} onClick={() => navigate(-1)}>
+            <button type="button" className="btn-secondary" style={{ justifyContent: 'center' }} onClick={() => navigate(-1)}>
               Cancel (Esc)
             </button>
           </div>

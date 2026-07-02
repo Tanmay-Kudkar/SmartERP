@@ -50,18 +50,18 @@ function QuickAction({ label, desc, icon: Icon, color, kbd, to, navigate }) {
   return (
     <div
       className="glass-card quick-action-card"
-      style={{ padding: '1rem', cursor: 'pointer' }}
+      style={{ padding: '1rem', cursor: 'pointer', height: '100%', display: 'flex', alignItems: 'center' }}
       onClick={() => navigate(to)}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', width: '100%' }}>
         <div style={{ width: '38px', height: '38px', background: `${color}15`, border: `1px solid ${color}30`, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Icon size={18} color={color} />
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--text-primary)' }}>{label}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>{desc}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: '600', fontSize: '0.875rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{desc}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
           {kbd && <span className="kbd">{kbd}</span>}
           <ArrowRight className="arrow-icon" size={14} color="var(--text-muted)" />
         </div>
@@ -104,14 +104,17 @@ export default function Dashboard() {
   // Master list of frequently used shortcuts to rank
   const allShortcuts = [
     { kbd: 'F1', label: 'Company Selection', action: () => navigate('/companies') },
+    { kbd: 'F2', label: 'Change Financial Year', action: () => window.dispatchEvent(new CustomEvent('open-fy-modal')) },
+    { kbd: 'F4', label: 'Calculator', action: () => window.dispatchEvent(new CustomEvent('toggle-calculator')) },
     { kbd: 'F8', label: 'Sales Voucher', action: () => navigate('/vouchers/sales/new') },
     { kbd: 'F9', label: 'Purchase Voucher', action: () => navigate('/vouchers/purchase/new') },
     { kbd: 'Alt+L', label: 'Create Ledger', action: () => navigate('/ledgers/new') },
     { kbd: 'Alt+S', label: 'Create Stock Item', action: () => navigate('/stock/items/new') },
+    { kbd: 'Alt+A', label: 'All Ledgers', action: () => navigate('/ledgers') },
+    { kbd: 'Ctrl+V', label: 'Vouchers Register', action: () => navigate('/vouchers') },
+    { kbd: 'Ctrl+I', label: 'Inventory Dashboard', action: () => navigate('/stock/items') },
     { kbd: 'Ctrl+K', label: 'Command Palette', action: () => window.dispatchEvent(new CustomEvent('toggle-command-palette')) },
     { kbd: 'Ctrl+H', label: 'Dashboard / Home', action: () => navigate('/dashboard') },
-    { kbd: 'Alt+A', label: 'All Ledgers', action: () => navigate('/ledgers') },
-    { kbd: 'Ctrl+I', label: 'Inventory', action: () => navigate('/stock/items') },
   ];
 
   // Get company-specific usage
@@ -122,7 +125,7 @@ export default function Dashboard() {
     const countA = companyUsage[a.kbd] || 0;
     const countB = companyUsage[b.kbd] || 0;
     return countB - countA;
-  }).slice(0, 7); // Show top 7
+  }).slice(0, 8); // Balanced height
 
   const handleShortcutClick = (kbd, action) => {
     if (trackShortcut) trackShortcut(activeCompany?.id, kbd);
@@ -190,7 +193,7 @@ export default function Dashboard() {
             <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Zap size={14} /> Quick Actions
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gridAutoRows: '1fr', gap: '0.75rem' }}>
               {quickActions.map(a => <QuickAction key={a.label} {...a} navigate={navigate} />)}
             </div>
           </div>

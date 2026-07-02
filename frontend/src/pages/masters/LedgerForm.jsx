@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 import api from '../../api/client';
+import CustomSelect from '../../components/CustomSelect';
 
 const LEDGER_TYPES = [
   { value: 'customer', label: 'Customer' },
@@ -41,6 +42,8 @@ export default function LedgerForm() {
   });
 
   const ledgerType = watch('ledger_type');
+  const groupId = watch('group_id');
+  const balanceType = watch('balance_type');
 
   useEffect(() => {
     api.get('/ledgers/groups').then(r => setGroups(r.data.groups)).catch(() => {});
@@ -122,26 +125,27 @@ export default function LedgerForm() {
             <div style={{ fontWeight: '700', fontSize: '0.875rem', marginBottom: '1.25rem', color: 'var(--accent-blue)' }}>Basic Information</div>
             <div className="form-grid">
               <div style={{ gridColumn: '1/-1' }}>
-                <label className="erp-label">Ledger Name *</label>
+                <label className="erp-label">Ledger Name <span style={{ color: '#ef4444' }}>*</span></label>
                 <input {...register('name', { required: 'Name is required' })} className="erp-input" placeholder="e.g. Rahul Traders, Rent Expense" autoFocus />
                 {errors.name && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.name.message}</p>}
               </div>
               <div>
-                <label className="erp-label">Ledger Type *</label>
-                <select 
-                  {...register('ledger_type', { required: true })} 
+                <label className="erp-label">Ledger Type <span style={{ color: '#ef4444' }}>*</span></label>
+                <CustomSelect 
+                  value={ledgerType}
+                  onChange={v => setValue('ledger_type', v)}
+                  options={LEDGER_TYPES}
                   disabled={isTypeFixed}
-                  className="erp-select"
-                >
-                  {LEDGER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                />
               </div>
               <div>
                 <label className="erp-label">Under Group</label>
-                <select {...register('group_id')} className="erp-select">
-                  <option value="">Select Group</option>
-                  {filteredGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
+                <CustomSelect 
+                  value={groupId}
+                  onChange={v => setValue('group_id', v)}
+                  options={filteredGroups.map(g => ({ label: g.name, value: g.id }))}
+                  placeholder="Select Group"
+                />
               </div>
               <div>
                 <label className="erp-label">Opening Balance (₹)</label>
@@ -149,10 +153,14 @@ export default function LedgerForm() {
               </div>
               <div>
                 <label className="erp-label">Balance Type</label>
-                <select {...register('balance_type')} className="erp-select">
-                  <option value="Dr">Debit (Dr)</option>
-                  <option value="Cr">Credit (Cr)</option>
-                </select>
+                <CustomSelect 
+                  value={balanceType}
+                  onChange={v => setValue('balance_type', v)}
+                  options={[
+                    { label: 'Debit (Dr)', value: 'Dr' },
+                    { label: 'Credit (Cr)', value: 'Cr' }
+                  ]}
+                />
               </div>
             </div>
           </div>
@@ -164,43 +172,89 @@ export default function LedgerForm() {
               <div className="form-grid">
                 <div>
                   <label className="erp-label">GST Number</label>
-                  <input {...register('gst_number')} className="erp-input" placeholder="27AAAAA0000A1Z5" />
+                  <input {...register('gst_number', { 
+                    pattern: { value: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/i, message: 'Format: 27ABCDE1234F1Z5' }
+                  })} className="erp-input" placeholder="27AAAAA0000A1Z5" style={{ textTransform: 'uppercase' }} maxLength={15} onInput={e => e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '')} />
+                  {errors.gst_number && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.gst_number.message}</p>}
                 </div>
                 <div>
                   <label className="erp-label">PAN Number</label>
-                  <input {...register('pan_number')} className="erp-input" placeholder="AAAAA0000A" />
+                  <input {...register('pan_number', {
+                    pattern: { value: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i, message: 'Format: ABCDE1234F' }
+                  })} className="erp-input" placeholder="AAAAA0000A" style={{ textTransform: 'uppercase' }} maxLength={10} onInput={e => e.target.value = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '')} />
+                  {errors.pan_number && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.pan_number.message}</p>}
                 </div>
                 <div>
                   <label className="erp-label">Phone</label>
-                  <input {...register('phone')} className="erp-input" placeholder="+91 98765 43210" />
+                  <div style={{ display: 'flex' }}>
+                    <div style={{ 
+                      padding: '0.6rem 0.8rem', 
+                      background: 'var(--bg-secondary)', 
+                      border: '1px solid var(--border)', 
+                      borderRight: 'none', 
+                      borderRadius: '8px 0 0 8px', 
+                      color: 'var(--text-muted)', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      fontSize: '0.85rem',
+                      fontWeight: '600'
+                    }}>
+                      +91
+                    </div>
+                    <input {...register('phone', {
+                      pattern: { value: /^[0-9]{10}$/, message: 'Must be exactly 10 digits' }
+                    })} className="erp-input" type="tel" maxLength={10} placeholder="9876543210" onInput={e => e.target.value = e.target.value.replace(/[^0-9]/g, '')} style={{ flex: 1, borderRadius: '0 8px 8px 0' }} />
+                  </div>
+                  {errors.phone && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.phone.message}</p>}
                 </div>
                 <div>
                   <label className="erp-label">Email</label>
-                  <input {...register('email')} className="erp-input" type="email" placeholder="party@example.com" />
+                  <input {...register('email', {
+                    pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email address' }
+                  })} className="erp-input" type="email" placeholder="party@example.com" />
+                  {errors.email && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.email.message}</p>}
                 </div>
                 <div style={{ gridColumn: '1/-1' }}>
-                  <label className="erp-label">Address</label>
-                  <textarea {...register('address')} className="erp-input" rows={2} placeholder="Street, Area" />
+                  <label className="erp-label">Address <span style={{ color: '#ef4444' }}>*</span></label>
+                  <textarea 
+                    {...register('address', { required: 'Address is required' })} 
+                    className="erp-input" 
+                    placeholder="Street, Area... (Auto-expands as you type)" 
+                    onInput={e => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    style={{ resize: 'none', minHeight: '80px', overflow: 'hidden', lineHeight: '1.5', padding: '0.75rem' }}
+                  />
+                  {errors.address && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.address.message}</p>}
                 </div>
                 <div>
-                  <label className="erp-label">City</label>
-                  <input {...register('city')} className="erp-input" placeholder="Mumbai" />
+                  <label className="erp-label">City <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input {...register('city', { required: 'City is required' })} className="erp-input" placeholder="Mumbai" />
+                  {errors.city && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.city.message}</p>}
                 </div>
                 <div>
-                  <label className="erp-label">State</label>
-                  <input {...register('state')} className="erp-input" placeholder="Maharashtra" />
+                  <label className="erp-label">State <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input {...register('state', { required: 'State is required' })} className="erp-input" placeholder="Maharashtra" />
+                  {errors.state && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.state.message}</p>}
                 </div>
                 <div>
-                  <label className="erp-label">Pincode</label>
-                  <input {...register('pincode')} className="erp-input" placeholder="400001" />
+                  <label className="erp-label">Pincode <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input {...register('pincode', {
+                    required: 'Pincode is required',
+                    pattern: { value: /^[0-9]{6}$/, message: 'Must be exactly 6 digits' }
+                  })} className="erp-input" type="text" maxLength={6} pattern="[0-9]{6}" placeholder="400001" onInput={e => e.target.value = e.target.value.replace(/[^0-9]/g, '')} />
+                  {errors.pincode && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.pincode.message}</p>}
                 </div>
                 <div>
                   <label className="erp-label">Credit Limit (₹)</label>
-                  <input {...register('credit_limit')} className="erp-input" type="number" step="0.01" placeholder="0.00" />
+                  <input {...register('credit_limit', { min: { value: 0, message: 'Cannot be negative' } })} className="erp-input" type="number" step="0.01" min="0" placeholder="0.00" />
+                  {errors.credit_limit && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.credit_limit.message}</p>}
                 </div>
                 <div>
                   <label className="erp-label">Credit Days</label>
-                  <input {...register('credit_days')} className="erp-input" type="number" placeholder="30" />
+                  <input {...register('credit_days', { min: { value: 0, message: 'Cannot be negative' } })} className="erp-input" type="number" min="0" placeholder="30" />
+                  {errors.credit_days && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.credit_days.message}</p>}
                 </div>
               </div>
             </div>

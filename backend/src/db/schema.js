@@ -85,6 +85,9 @@ const createTables = async () => {
         company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
         name VARCHAR(50) NOT NULL,
         symbol VARCHAR(20) NOT NULL,
+        description VARCHAR(255),
+        is_base_unit BOOLEAN DEFAULT false,
+        unit_type VARCHAR(50) DEFAULT 'Quantity',
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);

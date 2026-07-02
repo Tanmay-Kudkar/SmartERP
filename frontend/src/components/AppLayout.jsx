@@ -5,6 +5,7 @@ import useStore from '../store/useStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useSpatialNavigation } from '../hooks/useSpatialNavigation';
 import YearSelectInput from './YearSelectInput';
+import NeonSweepButton from './NeonSweepButton';
 
 const navGroups = [
   {
@@ -468,43 +469,22 @@ export default function AppLayout({ children }) {
           </button>
 
           {user && (
-            <div style={{ position: 'relative' }}>
-              <div 
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '8px', border: '1px solid transparent', background: profileDropdownOpen ? 'var(--bg-primary)' : 'transparent' }}
-                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{ width: '30px', height: '30px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#fff' }}>
                   {user.name?.[0]?.toUpperCase()}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{user.name?.split(' ')[0]}</span>
-                  <ChevronDown size={14} color="var(--text-muted)" />
-                </div>
+                <span style={{ fontSize: '0.875rem', fontWeight: '600' }}>{user.name}</span>
               </div>
-
-              {profileDropdownOpen && (
-                <div 
-                  className="glass-card animate-fade-in" 
-                  style={{ position: 'absolute', top: 'calc(100% + 0.5rem)', right: 0, width: '200px', padding: '0.5rem', zIndex: 60 }}
-                >
-                  <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '600' }}>{user.name}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{user.email}</div>
-                  </div>
-                  <button className="nav-item" style={{ width: '100%', border: 'none', background: 'none', justifyContent: 'flex-start', padding: '0.5rem' }}>
-                    <Settings size={15} />
-                    <span style={{ fontSize: '0.85rem' }}>Settings</span>
-                  </button>
-                  <button 
-                    className="nav-item" 
-                    style={{ width: '100%', border: 'none', background: 'none', justifyContent: 'flex-start', padding: '0.5rem', color: '#ef4444' }}
-                    onClick={() => { logout(); navigate('/login'); }}
-                  >
-                    <LogOut size={15} />
-                    <span style={{ fontSize: '0.85rem' }}>Logout</span>
-                  </button>
-                </div>
-              )}
+              <div style={{ width: '1px', height: '20px', background: 'var(--border)' }}></div>
+              <button 
+                className="btn-logout"
+                onClick={() => { logout(); navigate('/login'); }}
+                title="Logout"
+              >
+                <LogOut size={16} />
+                <span>Logout</span>
+              </button>
             </div>
           )}
         </header>
@@ -729,6 +709,7 @@ export default function AppLayout({ children }) {
                       key={cmd.label}
                       id={`cmd-item-${idx}`}
                       onClick={() => { cmd.action(navigate, logout); setShowPalette(false); }}
+                      onMouseEnter={() => setSelectedCmdIdx(idx)}
                       style={{
                         padding: '0.85rem 1rem',
                         borderRadius: '10px',

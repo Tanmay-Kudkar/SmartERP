@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Save } from 'lucide-react';
 import api from '../../api/client';
+import CustomSelect from '../../components/CustomSelect';
 
 const GST_RATES = [0, 3, 5, 12, 18, 28];
 
@@ -16,12 +17,14 @@ export default function StockItemForm() {
   const [groups, setGroups] = useState([]);
   const isEdit = !!id;
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
-    defaultValues: { gst_percentage: 18, opening_stock: 0, purchase_price: 0, selling_price: 0, mrp: 0, reorder_level: 0 }
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
+    defaultValues: { gst_percentage: 18, opening_stock: 0, purchase_price: 0, selling_price: 0, mrp: 0, reorder_level: 0, stock_group_id: '', unit_id: '' }
   });
 
   const sellingPrice = watch('selling_price');
   const gstPct = watch('gst_percentage');
+  const stockGroupId = watch('stock_group_id');
+  const unitId = watch('unit_id');
 
   useEffect(() => {
     Promise.all([
@@ -82,7 +85,7 @@ export default function StockItemForm() {
             <div style={{ fontWeight: '700', fontSize: '0.875rem', marginBottom: '1.25rem', color: 'var(--accent-blue)' }}>Item Details</div>
             <div className="form-grid">
               <div style={{ gridColumn: '1/-1' }}>
-                <label className="erp-label">Item Name *</label>
+                <label className="erp-label">Item Name <span style={{ color: '#ef4444' }}>*</span></label>
                 <input {...register('name', { required: 'Name required' })} className="erp-input" placeholder="e.g. Samsung TV 32 inch" autoFocus />
                 {errors.name && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.name.message}</p>}
               </div>
@@ -96,17 +99,24 @@ export default function StockItemForm() {
               </div>
               <div>
                 <label className="erp-label">Stock Group</label>
-                <select {...register('stock_group_id')} className="erp-select">
-                  <option value="">No Group</option>
-                  {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
+                <CustomSelect 
+                  value={stockGroupId}
+                  onChange={v => setValue('stock_group_id', v)}
+                  options={[
+                    { label: 'No Group', value: '' },
+                    ...groups.map(g => ({ label: g.name, value: g.id }))
+                  ]}
+                  placeholder="No Group"
+                />
               </div>
               <div>
-                <label className="erp-label">Unit of Measure *</label>
-                <select {...register('unit_id', { required: 'Unit required' })} className="erp-select">
-                  <option value="">Select Unit</option>
-                  {units.map(u => <option key={u.id} value={u.id}>{u.symbol} - {u.name}</option>)}
-                </select>
+                <label className="erp-label">Unit of Measure <span style={{ color: '#ef4444' }}>*</span></label>
+                <CustomSelect 
+                  value={unitId}
+                  onChange={v => setValue('unit_id', v)}
+                  options={units.map(u => ({ label: `${u.symbol} - ${u.name}`, value: u.id }))}
+                  placeholder="Select Unit"
+                />
                 {errors.unit_id && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.unit_id.message}</p>}
               </div>
               <div style={{ gridColumn: '1/-1' }}>
@@ -122,21 +132,23 @@ export default function StockItemForm() {
             <div className="form-grid">
               <div>
                 <label className="erp-label">Purchase Price (₹)</label>
-                <input {...register('purchase_price')} className="erp-input" type="number" step="0.01" placeholder="0.00" />
+                <input {...register('purchase_price')} className="erp-input" type="number" step="0.01" min="0" placeholder="0.00" />
               </div>
               <div>
                 <label className="erp-label">Selling Price (₹)</label>
-                <input {...register('selling_price')} className="erp-input" type="number" step="0.01" placeholder="0.00" />
+                <input {...register('selling_price')} className="erp-input" type="number" step="0.01" min="0" placeholder="0.00" />
               </div>
               <div>
                 <label className="erp-label">MRP (₹)</label>
-                <input {...register('mrp')} className="erp-input" type="number" step="0.01" placeholder="0.00" />
+                <input {...register('mrp')} className="erp-input" type="number" step="0.01" min="0" placeholder="0.00" />
               </div>
               <div>
                 <label className="erp-label">GST Rate (%)</label>
-                <select {...register('gst_percentage')} className="erp-select">
-                  {GST_RATES.map(r => <option key={r} value={r}>{r}% {r === 0 ? '(Exempt/Nil)' : ''}</option>)}
-                </select>
+                <CustomSelect 
+                  value={Number(gstPct)}
+                  onChange={v => setValue('gst_percentage', v)}
+                  options={GST_RATES.map(r => ({ label: `${r}% ${r === 0 ? '(Exempt/Nil)' : ''}`, value: r }))}
+                />
               </div>
               {sellingPrice > 0 && gstPct > 0 && (
                 <div style={{ gridColumn: '1/-1', background: 'rgba(59,130,246,0.08)', borderRadius: '8px', padding: '0.75rem', display: 'flex', gap: '2rem' }}>
@@ -167,11 +179,11 @@ export default function StockItemForm() {
             <div className="form-grid">
               <div>
                 <label className="erp-label">Opening Stock</label>
-                <input {...register('opening_stock')} className="erp-input" type="number" step="0.001" placeholder="0" />
+                <input {...register('opening_stock')} className="erp-input" type="number" step="0.001" min="0" placeholder="0" />
               </div>
               <div>
                 <label className="erp-label">Reorder Level</label>
-                <input {...register('reorder_level')} className="erp-input" type="number" step="0.001" placeholder="0" />
+                <input {...register('reorder_level')} className="erp-input" type="number" step="0.001" min="0" placeholder="0" />
               </div>
             </div>
           </div>

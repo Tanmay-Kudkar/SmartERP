@@ -16,7 +16,14 @@ const checkCompany = async (req, res, next) => {
 // GET /api/stock/units
 router.get('/units', auth, checkCompany, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM units WHERE company_id = $1 ORDER BY symbol', [req.companyId]);
+    const query = `
+      SELECT u.*, 
+             (SELECT COUNT(*) FROM stock_items si WHERE si.unit_id = u.id) as usage_count
+      FROM units u
+      WHERE u.company_id = $1
+      ORDER BY u.created_at DESC
+    `;
+    const result = await pool.query(query, [req.companyId]);
     res.json({ success: true, units: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error.' });
@@ -26,9 +33,27 @@ router.get('/units', auth, checkCompany, async (req, res) => {
 // POST /api/stock/units
 router.post('/units', auth, checkCompany, async (req, res) => {
   try {
-    const { name, symbol } = req.body;
-    const result = await pool.query('INSERT INTO units (company_id, name, symbol) VALUES ($1,$2,$3) RETURNING *', [req.companyId, name, symbol]);
+    const { name, symbol, description, is_base_unit, unit_type } = req.body;
+    const result = await pool.query(
+      'INSERT INTO units (company_id, name, symbol, description, is_base_unit, unit_type) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *', 
+      [req.companyId, name, symbol, description || null, is_base_unit || false, unit_type || 'Quantity']
+    );
     res.status(201).json({ success: true, unit: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// PUT /api/stock/units/:id
+router.put('/units/:id', auth, checkCompany, async (req, res) => {
+  try {
+    const { name, symbol, description, is_base_unit, unit_type } = req.body;
+    const result = await pool.query(
+      'UPDATE units SET name=$1, symbol=$2, description=$3, is_base_unit=$4, unit_type=$5 WHERE id=$6 AND company_id=$7 RETURNING *',
+      [name, symbol, description || null, is_base_unit || false, unit_type || 'Quantity', req.params.id, req.companyId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Unit not found.' });
+    res.json({ success: true, unit: result.rows[0] });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error.' });
   }
