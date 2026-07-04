@@ -4,6 +4,7 @@ import { Plus, Search, Pencil, Trash2, Package, AlertTriangle } from 'lucide-rea
 import api from '../../api/client';
 import toast from 'react-hot-toast';
 import NeonSweepButton from '../../components/NeonSweepButton';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function StockItemList() {
   const [items, setItems] = useState([]);
@@ -35,14 +36,22 @@ export default function StockItemList() {
   const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
   const currentItems = items.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"?`)) return;
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const confirmDelete = (id, name) => {
+    setDeleteTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/stock/items/${id}`);
+      await api.delete(`/stock/items/${deleteTarget.id}`);
       toast.success('Item deleted');
       fetchItems();
     } catch {
       toast.error('Cannot delete item');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -121,7 +130,7 @@ export default function StockItemList() {
                         <NeonSweepButton tone="slate" size="sm" onClick={() => navigate(`/stock/items/${item.id}/edit`)} title="Edit">
                           <Pencil size={14} /> Edit
                         </NeonSweepButton>
-                        <NeonSweepButton tone="danger" size="sm" onClick={() => handleDelete(item.id, item.name)} title="Delete">
+                        <NeonSweepButton tone="danger" size="sm" onClick={() => confirmDelete(item.id, item.name)} title="Delete">
                           <Trash2 size={14} /> Delete
                         </NeonSweepButton>
                       </div>
@@ -164,6 +173,15 @@ export default function StockItemList() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog 
+        isOpen={!!deleteTarget}
+        title="Delete Stock Item"
+        message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.name}"? This action cannot be undone.` : ''}
+        confirmText="Delete"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

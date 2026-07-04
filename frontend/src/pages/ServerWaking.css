@@ -1,0 +1,259 @@
+/* =========================================================
+   ServerWaking.css
+   ========================================================= */
+
+.sw-root {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.12) 0%, var(--bg-primary) 60%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  overflow: hidden;
+  position: relative;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+/* Light mode: richer gradient background so it doesn't look blank */
+[data-theme='light'] .sw-root {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(59,130,246,0.1) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, rgba(139,92,246,0.08) 0%, transparent 55%),
+    linear-gradient(160deg, #eef2ff 0%, #f0f9ff 40%, #f8fafc 100%);
+}
+
+/* Background particles */
+.sw-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.sw-particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: rgba(59,130,246,0.18);
+  animation: sw-float linear infinite;
+}
+@keyframes sw-float {
+  0%   { transform: translateY(110vh) scale(0.4); opacity: 0; }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.5; }
+  100% { transform: translateY(-10vh) scale(1.3); opacity: 0; }
+}
+
+/* Card */
+.sw-card {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+}
+
+/* Logo */
+.sw-logo {
+  display: flex; align-items: center; gap: 0.625rem;
+  margin-bottom: 3rem;
+  animation: sw-fadein 0.6s ease both;
+}
+.sw-logo-icon {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  padding: 0.625rem; border-radius: 0.625rem;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 24px rgba(59,130,246,0.4);
+}
+.sw-logo-text {
+  font-size: 1.375rem; font-weight: 800; letter-spacing: -0.03em;
+  background: linear-gradient(to right, #fff, #94a3b8);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+[data-theme='light'] .sw-logo-text {
+  background: linear-gradient(to right, #1e293b, #3b82f6);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Orbit */
+.sw-orbit-wrap {
+  position: relative; width: 9rem; height: 9rem;
+  margin-bottom: 2.5rem;
+  animation: sw-fadein 0.6s 0.1s ease both;
+}
+.sw-ring {
+  position: absolute; inset: 0; border-radius: 9999px;
+  border: 2px solid transparent;
+  background: conic-gradient(from 0deg, rgba(59,130,246,0.9), rgba(99,102,241,0.6), transparent 70%) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out; mask-composite: exclude;
+  animation: sw-spin 1.8s linear infinite;
+}
+.sw-ring-outer {
+  position: absolute; inset: -8px; border-radius: 9999px;
+  border: 1px solid transparent;
+  background: conic-gradient(from 180deg, rgba(139,92,246,0.5), transparent 55%) border-box;
+  -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out; mask-composite: exclude;
+  animation: sw-spin 3s linear infinite reverse;
+}
+@keyframes sw-spin { to { transform: rotate(360deg); } }
+.sw-center-icon {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.sw-server-icon {
+  width: 3rem; height: 3rem; color: #3b82f6;
+  filter: drop-shadow(0 0 14px rgba(59,130,246,0.7));
+  animation: sw-pulse-icon 2s ease-in-out infinite;
+}
+@keyframes sw-pulse-icon {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 10px rgba(59,130,246,0.5)); }
+  50%       { transform: scale(1.09); filter: drop-shadow(0 0 22px rgba(99,102,241,0.8)); }
+}
+
+/* Success state — SVG drawn tick */
+.sw-success-wrap {
+  position: relative; width: 9rem; height: 9rem;
+  margin-bottom: 2.5rem;
+  animation: sw-fadein 0.3s ease both;
+}
+/* The SVG itself fills the wrap */
+.sw-drawn-svg {
+  width: 100%; height: 100%;
+  /* rotate -90deg so circle starts drawing from the top */
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 12px rgba(16,185,129,0.45));
+}
+/* Circle draws clockwise: circumference = 2*PI*44 = 276.46 */
+.sw-drawn-circle {
+  stroke-dasharray: 276.5;
+  stroke-dashoffset: 276.5;
+  animation: sw-draw-circle 0.65s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes sw-draw-circle {
+  to { stroke-dashoffset: 0; }
+}
+/* Tick draws after circle. Path length M22,52 L40,70 L78,30 ≈ 79.2.
+   The path is inside the rotated SVG so we counter-rotate it. */
+.sw-drawn-check {
+  stroke-dasharray: 82;
+  stroke-dashoffset: 82;
+  /* counter-rotate so the check stays upright */
+  transform-origin: 50px 50px;
+  transform: rotate(90deg);
+  animation: sw-draw-check 0.45s 0.55s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes sw-draw-check {
+  to { stroke-dashoffset: 0; }
+}
+.sw-success-ripple {
+  position: absolute; inset: -14px; border-radius: 9999px;
+  border: 2px solid rgba(16,185,129,0.3);
+  animation: sw-ripple 1.3s ease-out 0.9s infinite;
+}
+.sw-success-ripple2 {
+  position: absolute; inset: -26px; border-radius: 9999px;
+  border: 1px solid rgba(16,185,129,0.15);
+  animation: sw-ripple 1.3s ease-out 1.2s infinite;
+}
+@keyframes sw-ripple {
+  0%   { transform: scale(1);    opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* Text */
+.sw-title {
+  font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.875rem;
+  animation: sw-fadein 0.6s 0.2s ease both;
+}
+.sw-subtitle {
+  font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.75;
+  margin-bottom: 2.5rem; max-width: 380px;
+  animation: sw-fadein 0.6s 0.3s ease both;
+}
+.sw-subtitle-ready { color: var(--accent-green); font-weight: 500; }
+
+/* Dots */
+.sw-dots {
+  display: flex; gap: 0.5rem; margin-bottom: 2rem;
+  animation: sw-fadein 0.6s 0.4s ease both;
+}
+.sw-dot {
+  width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: #3b82f6;
+  animation: sw-dot-bounce 1.4s ease-in-out infinite;
+}
+.sw-dot:nth-child(2) { animation-delay: 0.2s; }
+.sw-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes sw-dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%            { transform: scale(1.15); opacity: 1; }
+}
+
+/* Status bar */
+.sw-status-bar {
+  width: 100%; max-width: 320px; height: 4px;
+  border-radius: 9999px; background: var(--border);
+  overflow: hidden; margin-bottom: 2.5rem;
+  animation: sw-fadein 0.6s 0.5s ease both;
+}
+.sw-status-fill {
+  height: 100%; border-radius: 9999px;
+  background: linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6);
+  animation: sw-bar-slide 2.5s ease-in-out infinite;
+}
+@keyframes sw-bar-slide {
+  0%   { width: 0%;  margin-left: 0; }
+  50%  { width: 65%; margin-left: 0; }
+  100% { width: 0%;  margin-left: 100%; }
+}
+.sw-status-fill-full {
+  height: 100%; width: 100%; border-radius: 9999px;
+  background: linear-gradient(to right, #10b981, #34d399);
+  animation: sw-fadein 0.4s ease both;
+}
+
+.sw-attempts {
+  font-size: 0.75rem; color: var(--text-muted);
+  animation: sw-fadein 0.6s 0.6s ease both;
+  letter-spacing: 0.02em;
+}
+
+/* Note cards — row on desktop, column on mobile */
+.sw-notes {
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 680px;
+  animation: sw-fadein 0.6s 0.7s ease both;
+}
+@media (max-width: 767px) {
+  .sw-notes {
+    flex-direction: column;
+    max-width: 380px;
+  }
+}
+.sw-note {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.625rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: left;
+  min-width: 0;
+}
+.sw-note-icon { flex-shrink: 0; margin-top: 1px; }
+
+@keyframes sw-fadein {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Building2, Plus, Pencil, Trash2, ChevronRight, Zap, LogOut, Moon, Sun, Calendar } from 'lucide-react';
 import api from '../api/client';
 import useStore from '../store/useStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 import YearSelectInput from '../components/YearSelectInput';
 
 function CompanyCard({ company, onSelect, onEdit, onDelete }) {
@@ -217,14 +218,22 @@ export default function CompanySelection() {
     }
   };
 
-  const handleDelete = async (company) => {
-    if (!window.confirm(`Delete "${company.name}"? This will remove all its data.`)) return;
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const confirmDelete = (company) => {
+    setDeleteTarget(company);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/companies/${company.id}`);
+      await api.delete(`/companies/${deleteTarget.id}`);
       toast.success('Company deleted');
       fetchCompanies();
     } catch {
       toast.error('Failed to delete company');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -266,7 +275,7 @@ export default function CompanySelection() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {companies.map(c => (
-              <CompanyCard key={c.id} company={c} onSelect={handleSelect} onEdit={(c) => { setEditCompany(c); setShowModal(true); }} onDelete={handleDelete} />
+              <CompanyCard key={c.id} company={c} onSelect={handleSelect} onEdit={(c) => { setEditCompany(c); setShowModal(true); }} onDelete={confirmDelete} />
             ))}
 
             {companies.length < 5 && (
@@ -298,6 +307,15 @@ export default function CompanySelection() {
           onSave={handleSave}
         />
       )}
+
+      <ConfirmDialog 
+        isOpen={!!deleteTarget}
+        title="Delete Company"
+        message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.name}"? This will permanently remove all of its data including ledgers, stock items, and vouchers.` : ''}
+        confirmText="Delete Company"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -40,6 +40,18 @@ export default function UnitList() {
   const navigate = useNavigate();
   const nameRef = useRef(null);
 
+  // Lock body scroll when delete modal is open
+  useEffect(() => {
+    if (deleteTarget) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [deleteTarget]);
+
   const {
     register,
     handleSubmit,

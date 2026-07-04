@@ -49,6 +49,7 @@ export default function InvoiceView() {
   if (!voucher) return <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>Invoice not found</div>;
 
   const isSales = voucher.voucher_type === 'sales';
+  const isReceipt = voucher.voucher_type === 'receipt';
   const isInterstate = voucher.is_interstate;
   const grandTotal = parseFloat(voucher.grand_total);
 
@@ -137,7 +138,7 @@ export default function InvoiceView() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: '700', letterSpacing: '0.15em', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Document Type</div>
             <div style={{ fontSize: '1.5rem', fontWeight: '900', color: '#fff', letterSpacing: '0.05em', textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-              {isSales ? 'TAX INVOICE' : 'PURCHASE BILL'}
+              {isSales ? 'TAX INVOICE' : isReceipt ? 'PAYMENT RECEIPT' : 'PURCHASE BILL'}
             </div>
             <div style={{ marginTop: '0.5rem', background: 'rgba(255,255,255,0.15)', borderRadius: '20px', padding: '0.3rem 1rem', display: 'inline-block', fontSize: '0.85rem', color: '#fff', fontWeight: '700' }}>
               #{voucher.voucher_number}
@@ -150,7 +151,7 @@ export default function InvoiceView() {
           {/* Bill To — blue tint */}
           <div style={{ border: '1px solid #BFDBFE', padding: '1.25rem', borderRadius: '12px', background: 'linear-gradient(135deg, #EFF6FF, #DBEAFE)', borderLeft: '4px solid #2563EB' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', color: '#2563EB', marginBottom: '0.75rem', letterSpacing: '0.1em' }}>
-              {isSales ? '📋 BILL TO' : '🏭 SUPPLIER'}
+              {isSales ? '📋 BILL TO' : voucher.voucher_type === 'receipt' ? '👤 RECEIVED FROM' : '🏭 SUPPLIER'}
             </div>
             <div style={{ fontWeight: '800', fontSize: '1.1rem', color: '#1E3A8A' }}>{voucher.party_name}</div>
             {voucher.party_address && <div style={{ fontSize: '0.82rem', color: '#3B82F6', marginTop: '0.3rem' }}>{voucher.party_address}</div>}
@@ -174,7 +175,8 @@ export default function InvoiceView() {
           </div>
         </div>
 
-        {/* ── ITEMS TABLE ── */}
+        {/* ── ITEMS TABLE (Hidden for Receipts) ── */}
+        {voucher.voucher_type !== 'receipt' && (
         <div className="invoice-table-wrap" style={{ padding: '0 1.5rem', overflowX: 'auto' }}>
           <table className="invoice-print-table" style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', marginBottom: '2rem', fontSize: '0.82rem', borderRadius: '12px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
             <thead>
@@ -238,6 +240,7 @@ export default function InvoiceView() {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* ── TOTALS & NOTES ── */}
         <div className="totals-section" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.5rem', padding: '0 1.5rem', marginBottom: '2rem', pageBreakInside: 'avoid' }}>
@@ -263,33 +266,34 @@ export default function InvoiceView() {
 
           {/* Totals Card */}
           <div style={{ border: '1px solid #E5E7EB', borderRadius: '12px', overflow: 'hidden' }}>
-            {/* Breakdown rows */}
+            {/* Breakdown rows (Hidden for Receipts) */}
+            {voucher.voucher_type !== 'receipt' && (
             <div style={{ padding: '1rem 1.25rem', background: '#F9FAFB' }}>
               <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
                 <tbody>
                   <tr>
                     <td style={{ padding: '0.3rem 0', color: '#6B7280', fontWeight: '500' }}>Taxable Amount</td>
-                    <td style={{ textAlign: 'right', fontWeight: '700', color: '#111827' }}>₹{parseFloat(voucher.taxable_amount).toFixed(2)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '700', color: '#111827' }}>₹{parseFloat(voucher.taxable_amount || 0).toFixed(2)}</td>
                   </tr>
-                  {!isInterstate && parseFloat(voucher.cgst_amount) > 0 && (
+                  {!isInterstate && parseFloat(voucher.cgst_amount || 0) > 0 && (
                     <tr>
                       <td style={{ padding: '0.3rem 0', color: '#7C3AED', fontWeight: '500' }}>CGST</td>
                       <td style={{ textAlign: 'right', fontWeight: '700', color: '#7C3AED' }}>₹{parseFloat(voucher.cgst_amount).toFixed(2)}</td>
                     </tr>
                   )}
-                  {!isInterstate && parseFloat(voucher.sgst_amount) > 0 && (
+                  {!isInterstate && parseFloat(voucher.sgst_amount || 0) > 0 && (
                     <tr>
                       <td style={{ padding: '0.3rem 0', color: '#7C3AED', fontWeight: '500' }}>SGST</td>
                       <td style={{ textAlign: 'right', fontWeight: '700', color: '#7C3AED' }}>₹{parseFloat(voucher.sgst_amount).toFixed(2)}</td>
                     </tr>
                   )}
-                  {isInterstate && parseFloat(voucher.igst_amount) > 0 && (
+                  {isInterstate && parseFloat(voucher.igst_amount || 0) > 0 && (
                     <tr>
                       <td style={{ padding: '0.3rem 0', color: '#7C3AED', fontWeight: '500' }}>IGST</td>
                       <td style={{ textAlign: 'right', fontWeight: '700', color: '#7C3AED' }}>₹{parseFloat(voucher.igst_amount).toFixed(2)}</td>
                     </tr>
                   )}
-                  {parseFloat(voucher.discount_amount) > 0 && (
+                  {parseFloat(voucher.discount_amount || 0) > 0 && (
                     <tr>
                       <td style={{ padding: '0.3rem 0', color: '#DC2626', fontWeight: '500' }}>🏷️ Discount</td>
                       <td style={{ textAlign: 'right', color: '#DC2626', fontWeight: '700' }}>-₹{parseFloat(voucher.discount_amount).toFixed(2)}</td>
@@ -298,6 +302,7 @@ export default function InvoiceView() {
                 </tbody>
               </table>
             </div>
+            )}
 
             {/* Grand Total — blue highlight */}
             <div style={{ background: 'linear-gradient(90deg, #1E3A8A, #2563EB)', padding: '0.9rem 1.25rem' }}>

@@ -5,6 +5,7 @@ import api from '../../api/client';
 import toast from 'react-hot-toast';
 import NeonSweepButton from '../../components/NeonSweepButton';
 import CustomSelect from '../../components/CustomSelect';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const TYPE_LABELS = {
   customer: { label: 'Customer', plural: 'customers', color: '#10b981', badge: 'badge-green' },
@@ -59,14 +60,22 @@ export default function LedgerList() {
   const totalPages = Math.ceil(ledgers.length / ITEMS_PER_PAGE);
   const currentLedgers = ledgers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Delete ledger "${name}"?`)) return;
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const confirmDelete = (id, name) => {
+    setDeleteTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/ledgers/${id}`);
+      await api.delete(`/ledgers/${deleteTarget.id}`);
       toast.success('Ledger deleted');
       fetchLedgers();
     } catch {
       toast.error('Cannot delete this ledger');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -180,7 +189,7 @@ export default function LedgerList() {
                         <NeonSweepButton tone="slate" size="sm" onClick={() => navigate(`/ledgers/${l.id}/edit${typeFilter ? `?type=${typeFilter}` : ''}`)} title="Edit">
                           <Pencil size={14} /> Edit
                         </NeonSweepButton>
-                        <NeonSweepButton tone="danger" size="sm" onClick={() => handleDelete(l.id, l.name)} title="Delete">
+                        <NeonSweepButton tone="danger" size="sm" onClick={() => confirmDelete(l.id, l.name)} title="Delete">
                           <Trash2 size={14} /> Delete
                         </NeonSweepButton>
                       </div>
@@ -221,6 +230,15 @@ export default function LedgerList() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog 
+        isOpen={!!deleteTarget}
+        title="Delete Ledger"
+        message={deleteTarget ? `Are you sure you want to delete ledger "${deleteTarget.name}"? This action cannot be undone.` : ''}
+        confirmText="Delete"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

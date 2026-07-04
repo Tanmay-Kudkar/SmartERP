@@ -6,15 +6,46 @@ import useStore from '../store/useStore';
 import toast from 'react-hot-toast';
 
 function StatCard({ label, value, icon: Icon, cssClass, iconColor, subtitle, isCurrency = true, trend, progress }) {
+  const [displayValue, setDisplayValue] = useState(typeof value === 'number' ? 0 : value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+    
+    let startTimestamp = null;
+    const duration = 1200; // 1.2s animation duration
+    let animationFrameId;
+    
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // easeOutQuart curve for smooth deceleration
+      const easeProgress = 1 - Math.pow(1 - progress, 4);
+      
+      setDisplayValue(easeProgress * value);
+      
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+    
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [value]);
+
   return (
     <div className={`stat-card ${cssClass}`} style={{ transition: 'transform 0.2s', padding: '1.25rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>{label}</div>
           <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={typeof value === 'number' ? `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : value}>
-            {typeof value === 'number'
-              ? (isCurrency ? `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : value.toLocaleString('en-IN'))
-              : value}
+            {typeof displayValue === 'number'
+              ? (isCurrency ? `₹${displayValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : Math.floor(displayValue).toLocaleString('en-IN'))
+              : displayValue}
           </div>
           
           {trend && (
@@ -172,18 +203,18 @@ export default function Dashboard() {
 
       {/* Primary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-        <StatCard label="Total Sales" value={summary?.total_sales || 0} icon={TrendingUp} cssClass="kpi-sales" iconColor="#10b981" trend={{ isPositive: true, value: '12.5%' }} />
-        <StatCard label="Total Purchases" value={summary?.total_purchases || 0} icon={TrendingDown} cssClass="kpi-purchases" iconColor="#3b82f6" trend={{ isPositive: false, value: '4.2%' }} />
+        <StatCard label="Total Sales" value={summary?.total_sales || 0} icon={TrendingUp} cssClass="kpi-sales" iconColor="#10b981" />
+        <StatCard label="Total Purchases" value={summary?.total_purchases || 0} icon={TrendingDown} cssClass="kpi-purchases" iconColor="#3b82f6" />
         <StatCard label="Outstanding" value={summary?.total_outstanding || 0} icon={AlertCircle} cssClass="kpi-outstanding" iconColor="#f59e0b" />
-        <StatCard label="Stock Items" value={summary?.stock_items || 0} icon={Package} cssClass="kpi-inventory" iconColor="#8b5cf6" isCurrency={false} progress={{ label: 'Active Capacity', percent: 70 }} />
+        <StatCard label="Stock Items" value={summary?.stock_items || 0} icon={Package} cssClass="kpi-inventory" iconColor="#8b5cf6" isCurrency={false} />
       </div>
 
       {/* Secondary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        <StatCard label="Bank Balance" value={summary?.bank_balance || 0} icon={Landmark} cssClass="kpi-bank" iconColor="#7c3aed" subtitle="Primary Account" />
-        <StatCard label="Cash in Hand" value={summary?.cash_balance || 0} icon={Wallet} cssClass="kpi-cash" iconColor="#06b6d4" subtitle="Petty Cash" />
-        <StatCard label="Receivables" value={summary?.receivables || 0} icon={ArrowUpRight} cssClass="kpi-receivable" iconColor="#10b981" subtitle="Pending to receive" />
-        <StatCard label="Payables" value={summary?.payables || 0} icon={ArrowDownRight} cssClass="kpi-payable" iconColor="#ef4444" subtitle="Pending to pay" />
+        <StatCard label="Bank Balance" value={summary?.bank_balance || 0} icon={Landmark} cssClass="kpi-bank" iconColor="#7c3aed" />
+        <StatCard label="Cash in Hand" value={summary?.cash_balance || 0} icon={Wallet} cssClass="kpi-cash" iconColor="#06b6d4" />
+        <StatCard label="Receivables" value={summary?.receivables || 0} icon={ArrowUpRight} cssClass="kpi-receivable" iconColor="#10b981" />
+        <StatCard label="Payables" value={summary?.payables || 0} icon={ArrowDownRight} cssClass="kpi-payable" iconColor="#ef4444" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>

@@ -5,6 +5,7 @@ import api from '../../api/client';
 import CustomSelect from '../../components/CustomSelect';
 import toast from 'react-hot-toast';
 import NeonSweepButton from '../../components/NeonSweepButton';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const TYPE_CONFIG = {
   sales: { label: 'Sales', badge: 'badge-green', icon: ShoppingCart, color: '#10b981' },
@@ -43,14 +44,22 @@ export default function VoucherList() {
   const totalPages = Math.ceil(vouchers.length / ITEMS_PER_PAGE);
   const currentVouchers = vouchers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  const handleCancel = async (id, num) => {
-    if (!window.confirm(`Cancel voucher ${num}? This will reverse stock changes.`)) return;
+  const [cancelTarget, setCancelTarget] = useState(null);
+
+  const confirmCancel = (id, num) => {
+    setCancelTarget({ id, num });
+  };
+
+  const executeCancel = async () => {
+    if (!cancelTarget) return;
     try {
-      await api.delete(`/vouchers/${id}`);
+      await api.delete(`/vouchers/${cancelTarget.id}`);
       toast.success('Voucher cancelled');
       fetchVouchers();
     } catch {
       toast.error('Failed to cancel voucher');
+    } finally {
+      setCancelTarget(null);
     }
   };
 
@@ -149,7 +158,7 @@ export default function VoucherList() {
                           <NeonSweepButton tone="slate" size="sm" onClick={() => navigate(`/vouchers/${v.id}/view`)} title="View">
                             <Eye size={14} /> View
                           </NeonSweepButton>
-                          <NeonSweepButton tone="danger" size="sm" onClick={() => handleCancel(v.id, v.voucher_number)} title="Cancel">
+                          <NeonSweepButton tone="danger" size="sm" onClick={() => confirmCancel(v.id, v.voucher_number)} title="Cancel">
                             <Trash2 size={14} /> Cancel
                           </NeonSweepButton>
                         </div>
@@ -191,6 +200,15 @@ export default function VoucherList() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog 
+        isOpen={!!cancelTarget}
+        title="Cancel Voucher"
+        message={cancelTarget ? `Are you sure you want to cancel voucher ${cancelTarget.num}? This will reverse any stock changes associated with it.` : ''}
+        confirmText="Cancel Voucher"
+        onConfirm={executeCancel}
+        onCancel={() => setCancelTarget(null)}
+      />
     </div>
   );
 }

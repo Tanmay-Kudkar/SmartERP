@@ -1,8 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import useStore from './store/useStore';
 import AppLayout from './components/AppLayout';
+import GlobalLoader from './components/GlobalLoader';
+import TitleUpdater from './components/TitleUpdater';
+import ServerWaking from './pages/ServerWaking';
 
 // Pages
 import Login from './pages/Login';
@@ -11,6 +14,7 @@ import CompanySelection from './pages/CompanySelection';
 import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
 import ShortcutsGuide from './pages/ShortcutsGuide';
+import Landing from './pages/Landing';
 
 // Masters
 import LedgerList from './pages/masters/LedgerList';
@@ -52,8 +56,38 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  // Persist health-check result for the lifetime of the browser tab.
+  // sessionStorage clears when the tab is closed, so a fresh tab always
+  // re-verifies. It is also cleared explicitly when the server goes to sleep.
+  const [serverReady, setServerReady] = useState(
+    () => sessionStorage.getItem('sw_ready') === '1'
+  );
+
+  // Mark server as confirmed-alive and cache it
+  const handleReady = () => {
+    sessionStorage.setItem('sw_ready', '1');
+    setServerReady(true);
+  };
+
+  // If the server goes to sleep mid-session, clear the cache and show the
+  // waking screen again
+  useEffect(() => {
+    const onSleep = () => {
+      sessionStorage.removeItem('sw_ready');
+      setServerReady(false);
+    };
+    window.addEventListener('server:sleeping', onSleep);
+    return () => window.removeEventListener('server:sleeping', onSleep);
+  }, []);
+
+  if (!serverReady) {
+    return <ServerWaking onReady={handleReady} />;
+  }
+
   return (
     <BrowserRouter>
+      <TitleUpdater />
+      <GlobalLoader />
       <ScrollToTop />
       <Toaster
         position="top-right"
@@ -101,7 +135,7 @@ export default function App() {
         <Route path="/shortcuts" element={<PrivateRoute><ShortcutsGuide /></PrivateRoute>} />
 
         {/* Catch-all */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Landing />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
